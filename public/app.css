@@ -26,6 +26,10 @@
 }
 
 *{box-sizing:border-box}
+/* The `hidden` attribute is only display:none in the UA stylesheet, so any
+   author `display` (.sheet is display:flex) silently beats it and leaves the
+   element on screen. Everything toggled with el.hidden depends on this. */
+[hidden]{display:none!important}
 body{
   margin:0; background:var(--paper); color:var(--ink);
   font-family:Newsreader,Georgia,'Times New Roman',serif;
