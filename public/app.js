@@ -64,6 +64,18 @@ const feedbackFor = (id) => state.data?.feedback?.[id] || null;
 const weekDoc = (k) => state.data?.weeks?.[k] || null;
 const plan = () => state.data?.plan || null;
 
+/** Exercises prescribed for a strength session, from its own snapshot or the plan. */
+function prescriptionFor(session) {
+  if (session.prescribed?.length) return session.prescribed;
+  const wkKey = isoWeek(parseYmd(session.date));
+  const wk = weekDoc(wkKey);
+  if (!wk?.days) return [];
+  const idx = daysBetween(ymd(mondayOf(wkKey)), session.date);
+  const day = wk.days[idx];
+  const match = day?.sessions?.find((s) => sameSport(s.sport, 'lift') && s.exercises?.length);
+  return match?.exercises || [];
+}
+
 /** The date the Today panel is showing. */
 function viewDate() {
   const d = parseYmd(today());
@@ -78,6 +90,13 @@ function relDayLabel(date) {
   const d = parseYmd(date);
   return `${DOW[(d.getDay() + 6) % 7]}, ${MON[d.getMonth()]} ${d.getDate()}`;
 }
+/** Jump the day panel to a specific date and bring it into view. */
+function goToDay(date) {
+  state.dayOffset = Math.max(-120, Math.min(120, daysBetween(today(), date)));
+  render();
+  document.getElementById('today').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
 function shiftDay(n) {
   state.dayOffset = n === 0 ? 0 : Math.max(-120, Math.min(120, state.dayOffset + n));
   render();
@@ -281,7 +300,9 @@ function renderToday() {
       + `${ps.intensity ? ` · ${esc(ps.intensity)}` : ''}</div>`
       + `<div class="slot-title">${esc(ps.title || '—')}</div>`
       + (ps.detail ? `<p class="slot-detail">${esc(ps.detail)}</p>` : '')
+      + rxTable(ps.exercises)
       + (done ? `<div class="slot-actual">${actualLine(match[0])}</div>` : '')
+      + (done ? liftDoneTable(match[0]) : '')
       + '</div><div class="slot-side">'
       + `<span class="chip ${done ? 'done' : ps.optional ? 'opt' : ''}">`
       + `${done ? 'done' : ps.optional ? 'optional' : 'planned'}</span>`
@@ -330,6 +351,37 @@ function renderToday() {
     acts.push('<button id="syncNow">Sync Strava</button>');
   }
   $('todayActions').innerHTML = acts.join('');
+}
+
+/** Prescribed exercises, as a compact table. */
+function rxTable(exercises) {
+  if (!exercises?.length) return '';
+  return '<table class="rx"><tbody>'
+    + exercises.map((x) => '<tr>'
+      + `<td class="rx-ex">${esc(x.ex)}</td>`
+      + `<td class="rx-vol">${esc(x.sets || '?')}&thinsp;&times;&thinsp;${esc(x.reps || '?')}</td>`
+      + `<td class="rx-load">${x.loadLb ? `${n0(x.loadLb)} lb` : '—'}</td>`
+      + `<td class="rx-note">${esc(x.note || '')}</td>`
+      + '</tr>').join('')
+    + '</tbody></table>';
+}
+
+/** What was actually lifted, once logged. */
+function liftDoneTable(session) {
+  if (!session.lifts?.length) return '';
+  const rx = new Map(prescriptionFor(session).map((x) => [String(x.ex).toLowerCase(), x]));
+  return '<table class="rx done"><tbody>'
+    + session.lifts.map((l) => {
+      const p = rx.get(String(l.ex).toLowerCase());
+      const up = p && l.lb && p.loadLb && l.lb > p.loadLb;
+      return '<tr>'
+        + `<td class="rx-ex">${esc(l.ex)}</td>`
+        + `<td class="rx-vol">${esc(l.sets || '?')}&thinsp;&times;&thinsp;${esc(l.reps || '?')}</td>`
+        + `<td class="rx-load">${l.lb ? `${n0(l.lb)} lb${up ? ' ▲' : ''}` : '—'}</td>`
+        + `<td class="rx-note">${p && p.loadLb && l.lb && l.lb !== p.loadLb ? `planned ${n0(p.loadLb)} lb` : ''}</td>`
+        + '</tr>';
+    }).join('')
+    + '</tbody></table>';
 }
 
 // --- week ------------------------------------------------------------------
@@ -381,7 +433,9 @@ function renderWeek() {
       return `<span class="fbdot ${f ? (f.pain ? 'pain' : 'has') : ''}" title="${esc(title)}"></span>`;
     }).join('');
 
-    html += `<div class="day${isToday ? ' is-today' : ''}${past ? ' past' : ''}">`
+    html += `<div class="day${isToday ? ' is-today' : ''}${past ? ' past' : ''}"`
+      + ` data-goday="${date}" role="button" tabindex="0"`
+      + ` aria-label="Show ${DOW[i]} ${MON[d.getMonth()]} ${d.getDate()} in the day panel">`
       + `<div class="day-name"><b>${DOW[i]}</b><span>${MON[d.getMonth()]} ${d.getDate()}</span></div>`
       + `<div class="day-plan">${planHtml}</div>`
       + `<div class="day-act">${actHtml}</div>`
@@ -753,6 +807,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
 });
 
+// Enter or Space on a day row in the week strip opens that day.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest?.('[data-goday]');
+  if (!row) return;
+  e.preventDefault();
+  goToDay(row.getAttribute('data-goday'));
+});
+
 // Left/right move the Today panel a day. Ignored while typing, while a sheet
 // is open, or with modifiers held, so it never fights a field or the browser.
 document.addEventListener('keydown', (e) => {
@@ -803,16 +866,31 @@ function feedbackSheet(sessionId) {
         + `<span>${hm(lp.minutes)}</span></div>`).join('') + '</div>';
   }
 
-  const isLift = s.sport === 'lift' || s.sport === 'strength';
-  const lifts = (s.lifts?.length ? s.lifts : [{}, {}, {}]).concat([{}]);
+  const isLift = s.sport === 'lift' || s.sport === 'strength' || s.sport === 'mobility';
+  const rx = prescriptionFor(s);
+  // Prefill from what was logged before, else from the prescription, so logging
+  // is editing real numbers rather than typing a session from scratch.
+  const seedRows = s.lifts?.length
+    ? s.lifts
+    : rx.map((x) => ({ ex: x.ex, sets: x.sets, reps: parseInt(x.reps, 10) || '', lb: x.loadLb || '' }));
+  const rows = (seedRows.length ? seedRows : [{}, {}, {}]).concat([{}]);
+  const target = new Map(rx.map((x) => [String(x.ex).toLowerCase(), x]));
   const liftRows = isLift
-    ? '<div class="field"><label>Lifts &mdash; exercise, sets, reps, weight</label>'
+    ? '<div class="field"><label>What you actually lifted</label>'
+      + (rx.length ? '<div class="scalenote" style="margin:0 0 8px">Prefilled from the plan. '
+        + 'Correct the reps and weight to what you did &mdash; that is what the next block builds on.</div>' : '')
       + '<table class="lifts" id="liftTable"><tbody>'
-      + lifts.map((l) => '<tr>'
-        + `<td><input type="text" data-l="ex" value="${esc(l.ex || '')}" placeholder="Trap bar deadlift"></td>`
-        + `<td style="width:58px"><input type="number" data-l="sets" value="${esc(l.sets || '')}" placeholder="3"></td>`
-        + `<td style="width:58px"><input type="number" data-l="reps" value="${esc(l.reps || '')}" placeholder="5"></td>`
-        + `<td style="width:78px"><input type="number" data-l="lb" value="${esc(l.lb || '')}" placeholder="lb"></td></tr>`).join('')
+      + rows.map((l) => {
+        const p = target.get(String(l.ex || '').toLowerCase());
+        return '<tr>'
+          + `<td><input type="text" data-l="ex" value="${esc(l.ex || '')}" placeholder="Trap bar deadlift">`
+          + (p ? `<span class="rx-hint">plan: ${esc(p.sets || '?')}&times;${esc(p.reps || '?')}`
+            + `${p.loadLb ? ` @ ${n0(p.loadLb)} lb` : ''}${p.note ? ` &middot; ${esc(p.note)}` : ''}</span>` : '')
+          + '</td>'
+          + `<td style="width:56px"><input type="number" data-l="sets" value="${esc(l.sets || '')}" placeholder="3"></td>`
+          + `<td style="width:56px"><input type="number" data-l="reps" value="${esc(l.reps || '')}" placeholder="5"></td>`
+          + `<td style="width:76px"><input type="number" data-l="lb" value="${esc(l.lb || '')}" placeholder="lb"></td></tr>`;
+      }).join('')
       + '</tbody></table></div>'
     : '';
 
@@ -1041,6 +1119,8 @@ document.addEventListener('click', async (e) => {
   if (fb) { feedbackSheet(fb.getAttribute('data-fb')); return; }
   const day = t.closest('[data-day]');
   if (day) { shiftDay(Number(day.getAttribute('data-day'))); return; }
+  const goday = t.closest('[data-goday]');
+  if (goday && !t.closest('button')) { goToDay(goday.getAttribute('data-goday')); return; }
   const lg = t.closest('[data-log]');
   if (lg) { manualSheet(lg.getAttribute('data-log'), lg.getAttribute('data-log-date') || viewDate()); return; }
   const pw = t.closest('[data-plan]');

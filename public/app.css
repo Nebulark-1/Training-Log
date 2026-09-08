@@ -344,3 +344,28 @@ input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; colo
 }
 .daynav button:hover:not(:disabled){color:var(--ink); border-color:var(--ink)}
 .daynav .today-reset{min-width:0; font-size:14px; padding:5px 11px; line-height:1.3}
+
+/* ---- prescribed and completed lifts ------------------------------------- */
+.rx{
+  width:100%; margin:10px 0 0; border-collapse:collapse;
+  font-family:'Barlow Condensed',sans-serif; font-size:15.5px;
+}
+.rx td{
+  padding:4px 10px 4px 0; border:0; border-top:1px dotted var(--line);
+  vertical-align:baseline; white-space:normal;
+}
+.rx tr:first-child td{border-top:1px solid var(--line)}
+.rx-ex{font-weight:500; color:var(--ink)}
+.rx-vol{white-space:nowrap; color:var(--ink); font-variant-numeric:tabular-nums; width:82px}
+.rx-load{white-space:nowrap; color:var(--ink); font-variant-numeric:tabular-nums; width:76px}
+.rx-note{color:var(--mut); font-family:Newsreader,Georgia,serif; font-size:15px; line-height:1.4}
+.rx.done .rx-ex,.rx.done .rx-vol,.rx.done .rx-load{color:var(--lift)}
+.rx.done .rx-load{font-weight:500}
+.rx-hint{
+  display:block; margin-top:3px; font-family:'Barlow Condensed',sans-serif;
+  font-size:13.5px; color:var(--mut);
+}
+.day[data-goday]{cursor:pointer}
+.day[data-goday]:hover{background:var(--ghost2)}
+.day[data-goday].is-today:hover{background:var(--ghost)}
+.day[data-goday]:focus-visible{outline:2px solid var(--swim); outline-offset:-2px}

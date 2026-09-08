@@ -36,12 +36,35 @@ const RULES = [
   '- Injury signals override the plan: pain that changes gait, pain that rises during a run, swelling the next morning, pain at rest, or pain above 3/10. Any of those means drop to the last symptom-free volume, hold two weeks, and advise seeing a physio. Never program through them.',
   '- You are a coach, not a clinician. Name symptoms and refer; do not diagnose.',
   '',
+  'Strength sessions are programmed, not described. Every lift or strength session gets',
+  'named exercises with sets, a rep target, and a load in pounds:',
+  '- Progress from what they actually logged. If they completed every set at the top of the',
+  '  rep range, add load next time - about 5-10 lb on a hinge or squat pattern, 2.5-5 lb on',
+  '  a press or single-leg lift. If they missed reps, hold the load or drop it slightly.',
+  '- With no logged history for an exercise, prescribe it as a calibration set: give the rep',
+  '  target and an RPE, set loadLb to 0, and say in the note to log the weight actually used',
+  '  so the next session can progress from a real number.',
+  '- Use loadLb 0 for genuinely unloaded work (bodyweight, isometrics, band work) and say so',
+  '  in the note.',
+  '- Match the phase: rehab-led and tendon-focused while volume is being rebuilt, heavy hinge',
+  '  and single-leg work through the middle, reduced volume at maintenance when running peaks.',
+  '- If a session note mentions a niggle, add targeted work for it and reduce load on the',
+  '  pattern that aggravates it. Say which exercise you added and why.',
+  '',
   'Write prose like a coach talking to an athlete they know: direct, specific, no cheerleading, no hedging.',
 ].join('\n');
 
 // --- schemas ---------------------------------------------------------------
 // Every field is required and non-nullable: strict JSON-schema output is most
 // reliable that way. Empty means 0 or "", and is normalized after parsing.
+const ExerciseSchema = z.object({
+  ex: z.string().describe('exercise name, e.g. "Trap bar deadlift"'),
+  sets: z.number(),
+  reps: z.string().describe('rep target as text: "5", "8 each side", "6-8", "45 sec"'),
+  loadLb: z.number().describe('load in pounds; 0 for bodyweight, band work, or a calibration set'),
+  note: z.string().describe('cue, tempo or RPE target; empty string if none'),
+});
+
 const SessionSchema = z.object({
   sport: z.string().describe('run, bike, swim, lift, strength or mobility'),
   title: z.string().describe('short prescription, e.g. "8 mi easy"'),
@@ -50,6 +73,8 @@ const SessionSchema = z.object({
   intensity: z.string().describe('easy, steady, tempo, intervals, long, recovery, technique or heavy'),
   detail: z.string().describe('one sentence of instruction'),
   optional: z.boolean(),
+  exercises: z.array(ExerciseSchema)
+    .describe('required for lift and strength sessions; empty array for every other sport'),
 });
 
 const DaySchema = z.object({
@@ -318,6 +343,30 @@ export function buildContext(userId, { weeks: nWeeks = 12, sessions: nSessions =
     L.push(`  ${bits.join(' | ')}`);
   }
 
+  const lifts = activities
+    .filter((s) => (s.sport === 'lift' || s.sport === 'strength') && (s.lifts?.length || s.prescribed?.length))
+    .slice(0, 8);
+  if (lifts.length) {
+    L.push('');
+    L.push('STRENGTH HISTORY, newest first (prescribed -> what they actually did):');
+    for (const s of lifts) {
+      L.push(`  ${s.date} ${s.name || 'strength'}`);
+      const rx = new Map((s.prescribed || []).map((x) => [String(x.ex).toLowerCase(), x]));
+      const done = new Map((s.lifts || []).map((x) => [String(x.ex).toLowerCase(), x]));
+      for (const key of new Set([...rx.keys(), ...done.keys()])) {
+        const p = rx.get(key);
+        const a = done.get(key);
+        const left = p
+          ? `rx ${p.sets || '?'}x${p.reps || '?'}${p.loadLb ? ` @${p.loadLb}lb` : ' @bodyweight/calibrate'}`
+          : 'not prescribed';
+        const right = a
+          ? `did ${a.sets || '?'}x${a.reps || '?'}${a.lb ? ` @${a.lb}lb` : ''}`
+          : 'not logged';
+        L.push(`    ${(p?.ex || a?.ex || key)}: ${left} -> ${right}`);
+      }
+    }
+  }
+
   if (digests.length) {
     L.push('');
     L.push("RECENT WEEKLY DIGESTS, in the athlete's words:");
@@ -364,6 +413,11 @@ export async function planWeek(userId, weekKey) {
     `Return exactly 7 days in order, Monday first, with these dates: ${dates.join(', ')}.`,
     'A rest day is a day with an empty sessions array. Every run session needs miles set.',
     'Every bike, swim, lift or strength session needs minutes set. Use 0 for a value that does not apply.',
+    '',
+    'Every lift and strength session must carry an exercises array: named exercises with sets,',
+    'a rep target, and loadLb in pounds. Progress the loads from the STRENGTH HISTORY above.',
+    'Where an exercise has no logged history, prescribe it as a calibration set with loadLb 0',
+    'and say in the note to log the weight used. Non-strength sessions take an empty array.',
   ].join('\n');
 
   const out = await ask(userId, 'plan-week', WeekPlanSchema, task);
@@ -381,6 +435,13 @@ export async function planWeek(userId, weekKey) {
         intensity: s.intensity ? String(s.intensity) : null,
         detail: s.detail ? String(s.detail) : null,
         optional: Boolean(s.optional),
+        exercises: (Array.isArray(s.exercises) ? s.exercises : []).slice(0, 12).map((x) => ({
+          ex: String(x.ex || '').slice(0, 80),
+          sets: Number(x.sets) || null,
+          reps: String(x.reps || '').slice(0, 40),
+          loadLb: Number(x.loadLb) || 0,
+          note: String(x.note || '').slice(0, 240),
+        })).filter((x) => x.ex),
       })),
     };
   });

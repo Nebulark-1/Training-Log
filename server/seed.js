@@ -45,9 +45,15 @@ export function seedUser(userId) {
     }
   }
 
-  if (!getWeek(userId, week)) {
+  const existing = getWeek(userId, week);
+  // Refresh a still-seeded week when the template has gained something it
+  // lacks (prescribed exercises, for instance). Only ever touches a week the
+  // coach has not written, so a real plan is never overwritten.
+  const staleSeed = existing?.source === 'seed' && !hasExercises(existing);
+
+  if (!existing || staleSeed) {
     const template = readSeed('week-2026-W37.json');
-    if (template?.days?.length === 7) {
+    if (template?.days?.length === 7 && (!existing || hasExercises(template))) {
       const dates = weekDates(week);
       saveWeek(userId, week, {
         ...template,
@@ -58,4 +64,14 @@ export function seedUser(userId) {
       });
     }
   }
+}
+
+const STRENGTH = new Set(['lift', 'strength', 'mobility']);
+
+/** Does this week prescribe exercises for its strength sessions? */
+function hasExercises(weekDoc) {
+  const strength = (weekDoc.days || [])
+    .flatMap((d) => d.sessions || [])
+    .filter((s) => STRENGTH.has(s.sport));
+  return strength.length > 0 && strength.every((s) => s.exercises?.length);
 }

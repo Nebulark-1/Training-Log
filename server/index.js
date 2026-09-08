@@ -10,11 +10,11 @@ import {
 } from './coach.js';
 import {
   activityCount, deleteActivity, exportAll, getActivities, getActivity, getConnection,
-  getDigests, getFeedback, getPlan, getSettings, getSyncState, getWeeks, newId,
+  getDigests, getFeedback, getPlan, getSettings, getSyncState, getWeek, getWeeks, newId,
   pruneExpired, saveActivity, saveFeedback, saveSettings, saveUserKey, saveDigest,
 } from './db.js';
 import { seedUser } from './seed.js';
-import { mondayOf, thisWeek, weekAdd, ymd } from '../public/lib/dates.js';
+import { daysBetween, isoWeek, mondayOf, parseYmd, thisWeek, weekAdd, ymd } from '../public/lib/dates.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -37,6 +37,19 @@ app.use(attachUser);
 
 app.use('/auth', authRouter);
 app.use('/auth/strava', stravaRouter);
+
+/** The exercises planned for the lift session on this date, if any. */
+function prescriptionFor(userId, session) {
+  const wkKey = isoWeek(parseYmd(session.date));
+  const wk = getWeek(userId, wkKey);
+  if (!wk?.days) return [];
+  const idx = daysBetween(ymd(mondayOf(wkKey)), session.date);
+  const day = wk.days[idx];
+  if (!day?.sessions) return [];
+  const strength = (s) => ['lift', 'strength', 'mobility'].includes(s.sport);
+  const match = day.sessions.find((s) => strength(s) && s.exercises?.length);
+  return match?.exercises || [];
+}
 
 const api = express.Router();
 api.use(requireUser);
@@ -157,8 +170,15 @@ api.patch('/sessions/:id', (req, res) => {
       }))
     : null;
   const doc = { ...existing };
-  if (lifts) doc.lifts = lifts;
-  else delete doc.lifts;
+  if (lifts) {
+    doc.lifts = lifts;
+    // Snapshot what was prescribed for this session, so later weeks can be
+    // progressed from prescribed-vs-actual without re-reading old plans.
+    const prescribed = prescriptionFor(req.user.id, existing);
+    if (prescribed.length) doc.prescribed = prescribed;
+  } else {
+    delete doc.lifts;
+  }
   saveActivity(req.user.id, doc);
   res.json({ ok: true, session: doc });
 });
