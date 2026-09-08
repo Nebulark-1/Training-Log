@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS = {
   limits: 'Monday stays off running. Stop and hold volume if knee pain changes gait, rises during a run, swells the next morning, hurts at rest, or passes 3/10.',
 };
 
-const RULES = [
+export const RULES = [
   "You are the coach for one athlete's training log. You write the plan; they execute it and report back.",
   'Be concrete and quantitative. Prescribe distances in miles, durations in minutes, and efforts the athlete can execute without interpretation.',
   '',
@@ -90,7 +90,7 @@ const TargetsSchema = z.object({
   strengthSessions: z.number(),
 });
 
-const WeekPlanSchema = z.object({
+export const WeekPlanSchema = z.object({
   targets: TargetsSchema,
   deload: z.boolean(),
   verdict: z.string().describe('exactly one of: push, hold, back off'),
@@ -100,7 +100,7 @@ const WeekPlanSchema = z.object({
   days: z.array(DaySchema).describe('exactly 7, Monday first'),
 });
 
-const ReviewSchema = z.object({
+export const ReviewSchema = z.object({
   verdict: z.string().describe('exactly one of: push, hold, back off'),
   summary: z.string().describe('2-4 short paragraphs separated by blank lines'),
   observations: z.array(z.string()).describe('things true in the numbers they may not have noticed'),
@@ -128,7 +128,7 @@ const WeekTargetSchema = z.object({
   deload: z.boolean(),
 });
 
-const MacrocycleSchema = z.object({
+export const MacrocycleSchema = z.object({
   targetDate: z.string().describe('YYYY-MM-DD when the goal volume is reached and holding'),
   rationale: z.string().describe('one paragraph on the shape of the plan and why'),
   phases: z.array(PhaseSchema).describe('3 to 5 phases'),
@@ -397,13 +397,17 @@ const targets = (t) => ({
 });
 
 // --- actions ---------------------------------------------------------------
-export async function planWeek(userId, weekKey) {
+// Each action splits into a prompt half and an apply half. The API path runs
+// both with ask() in between; the offline path (server/cli.js, driven from a
+// Claude Code session) prints the same prompt and applies hand-written JSON
+// through the same normalizer, so the two routes cannot drift apart.
+
+// --- plan a week -----------------------------------------------------------
+export function weekPrompt(userId, weekKey) {
   const prev = weekAdd(weekKey, -1);
   const dates = weekDates(weekKey);
-  const context = buildContext(userId, { weeks: 12, sessions: 22 });
-
   const task = [
-    context,
+    buildContext(userId, { weeks: 12, sessions: 22 }),
     '',
     '=== TASK ===',
     `Write the training week for ${weekKey} (Monday ${dates[0]} through Sunday ${dates[6]}).`,
@@ -419,9 +423,11 @@ export async function planWeek(userId, weekKey) {
     'Where an exercise has no logged history, prescribe it as a calibration set with loadLb 0',
     'and say in the note to log the weight used. Non-strength sessions take an empty array.',
   ].join('\n');
+  return { kind: 'plan-week', schema: WeekPlanSchema, task, dates };
+}
 
-  const out = await ask(userId, 'plan-week', WeekPlanSchema, task);
-
+export function applyWeek(userId, weekKey, out, source = 'claude') {
+  const dates = weekDates(weekKey);
   const days = dates.map((date, i) => {
     const src = out.days?.[i] || {};
     return {
@@ -455,18 +461,23 @@ export async function planWeek(userId, weekKey) {
     coachNote: out.coachNote || null,
     adjustments: (out.adjustments || []).slice(0, 8),
     days,
-    source: 'claude',
+    source,
     generatedAt: new Date().toISOString(),
   };
   saveWeek(userId, weekKey, doc);
   return doc;
 }
 
-export async function reviewDigest(userId, text) {
+export async function planWeek(userId, weekKey) {
+  const { schema, task } = weekPrompt(userId, weekKey);
+  const out = await ask(userId, 'plan-week', schema, task);
+  return applyWeek(userId, weekKey, out);
+}
+
+// --- review the weekly digest ---------------------------------------------
+export function reviewPrompt(userId, text) {
   const week = thisWeek();
   const last = weekAdd(week, -1);
-  saveDigest(userId, week, { week, text, submittedAt: new Date().toISOString() });
-
   const task = [
     buildContext(userId, { weeks: 12, sessions: 26 }),
     '',
@@ -479,9 +490,11 @@ export async function reviewDigest(userId, text) {
     'If the digest sounds flat and the numbers are fine, look for sleep, life load, or pace creep in easy runs.',
     'Leave flags empty unless something genuinely warrants watching.',
   ].join('\n');
+  return { kind: 'review-digest', schema: ReviewSchema, task, week, last };
+}
 
-  const out = await ask(userId, 'review-digest', ReviewSchema, task);
-
+export function applyReview(userId, text, out) {
+  const week = thisWeek();
   const review = {
     verdict: verdictOf(out.verdict),
     summary: out.summary || '',
@@ -492,29 +505,41 @@ export async function reviewDigest(userId, text) {
     generatedAt: new Date().toISOString(),
   };
   saveDigest(userId, week, { week, text, submittedAt: new Date().toISOString(), review });
+  return review;
+}
 
+export async function reviewDigest(userId, text) {
+  const week = thisWeek();
+  // Store the digest before spending anything, so the text survives a failure.
+  saveDigest(userId, week, { week, text, submittedAt: new Date().toISOString() });
+  const { schema, task } = reviewPrompt(userId, text);
+  const out = await ask(userId, 'review-digest', schema, task);
+  const review = applyReview(userId, text, out);
   const plan = await planWeek(userId, week);
   return { review, week: plan };
 }
 
-export async function buildMacrocycle(userId) {
+// --- build the macrocycle --------------------------------------------------
+export function macroPrompt(userId) {
   const settings = { ...DEFAULT_SETTINGS, ...(getSettings(userId) || {}) };
   const week = thisWeek();
-
   const task = [
     buildContext(userId, { weeks: 16, sessions: 20 }),
     '',
     '=== TASK ===',
-    `Build the macrocycle that gets this athlete from the volume their recent weeks actually show to`,
+    'Build the macrocycle that gets this athlete from the volume their recent weeks actually show to',
     `${settings.targetMpw || 75} run miles a week, held sustainably. Start from the evidence in the weekly`,
     'actuals above, not from an assumption about where they should be. Set the timeline yourself.',
     'Use 3 to 5 phases. Give week-by-week targets for 26 consecutive weeks with every fourth week a deload,',
     'and bike, swim and strength alongside so their stated minimums hold.',
     `weekTargets must start at ${week} with index 1 and run to index 26.`,
   ].join('\n');
+  return { kind: 'build-plan', schema: MacrocycleSchema, task, week };
+}
 
-  const out = await ask(userId, 'build-plan', MacrocycleSchema, task);
-
+export function applyMacrocycle(userId, out, source = 'claude') {
+  const settings = { ...DEFAULT_SETTINGS, ...(getSettings(userId) || {}) };
+  const week = thisWeek();
   const weekTargets = (out.weekTargets || []).slice(0, 30).map((t, i) => ({
     week: /^\d{4}-W\d{2}$/.test(String(t.week)) ? t.week : weekAdd(week, i),
     index: t.index || i + 1,
@@ -531,14 +556,23 @@ export async function buildMacrocycle(userId) {
     targetMpw: settings.targetMpw || null,
     targetDate: out.targetDate || settings.targetDate || '',
     rationale: out.rationale || '',
-    phases: (out.phases || []).map((p) => ({
-      n: p.n || 0, name: String(p.name || ''),
-      weekFrom: p.weekFrom || 0, weekTo: p.weekTo || 0, job: String(p.job || ''),
+    phases: (out.phases || []).map((ph) => ({
+      n: ph.n || 0,
+      name: String(ph.name || ''),
+      weekFrom: ph.weekFrom || 0,
+      weekTo: ph.weekTo || 0,
+      job: String(ph.job || ''),
     })),
     weekTargets,
-    source: 'claude',
+    source,
     generatedAt: new Date().toISOString(),
   };
   savePlan(userId, doc);
   return doc;
+}
+
+export async function buildMacrocycle(userId) {
+  const { schema, task } = macroPrompt(userId);
+  const out = await ask(userId, 'build-plan', schema, task);
+  return applyMacrocycle(userId, out);
 }

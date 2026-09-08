@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node --experimental-sqlite --no-warnings server/index.js",
-    "dev": "node --experimental-sqlite --no-warnings --watch server/index.js"
+    "dev": "node --experimental-sqlite --no-warnings --watch server/index.js",
+    "coach": "node --experimental-sqlite --no-warnings server/cli.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

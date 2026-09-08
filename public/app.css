@@ -369,3 +369,8 @@ input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; colo
 .day[data-goday]:hover{background:var(--ghost2)}
 .day[data-goday].is-today:hover{background:var(--ghost)}
 .day[data-goday]:focus-visible{outline:2px solid var(--swim); outline-offset:-2px}
+
+.thinking code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--ghost); padding:1px 5px;
+}

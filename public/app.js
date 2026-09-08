@@ -344,6 +344,8 @@ function renderToday() {
   const acts = [];
   if (!wk && state.data?.claude?.available) {
     acts.push(`<button class="solid" data-plan="${wkKey}">Plan ${esc(wkKey)}</button>`);
+  } else if (!wk) {
+    acts.push(`<span class="thinking">Not planned yet — <code>npm run coach -- prompt plan-week ${wkKey}</code></span>`);
   }
   if (nf.length) acts.push(`<button class="solid" id="fbNext">Add notes (${nf.length})</button>`);
   if (!isFuture) acts.push('<button id="logManual">Log a session</button>');
@@ -608,8 +610,8 @@ function renderCoach() {
     btns.push('<button class="solid" id="sendDigest">Send digest to Claude</button>');
     btns.push('<button id="saveDigest">Save draft</button>');
   } else {
-    btns.push('<button id="saveDigest">Save draft</button>');
-    btns.push('<span class="thinking">Claude has no credentials — see Setup.</span>');
+    btns.push('<button class="solid" id="saveDigest">Save draft</button>');
+    btns.push('<span class="thinking">No API key: save the draft, then ask Claude Code to plan the week.</span>');
   }
   $('digestActions').innerHTML = btns.join('');
 }
@@ -702,7 +704,8 @@ function renderPlan() {
     : '';
   $('planActions').innerHTML = state.data?.claude?.available
     ? `<button class="solid" id="buildPlan">${p ? 'Rebuild from my history' : 'Build the plan'}</button>`
-    : '<span class="thinking">Add Claude credentials in Setup to build a plan.</span>';
+    : '<span class="thinking">No API key. Build the plan from a Claude Code session instead:'
+      + ' <code>npm run coach -- prompt build-plan</code></span>';
 }
 
 // --- setup -----------------------------------------------------------------

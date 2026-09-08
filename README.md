@@ -93,6 +93,35 @@ outputs validated against a schema before anything is stored, and server-side
 refusal fallbacks (set `CLAUDE_FALLBACKS=0` to disable). Every call is recorded
 in the `coach_runs` table with model, token usage and duration.
 
+## Coaching without an API key
+
+The same loop runs from a Claude Code session instead of the API, which costs
+nothing beyond your Claude plan. `npm run coach` prints exactly what the API
+would send and takes the answer back through exactly the same validation and
+storage, so the two routes cannot drift apart.
+
+```bash
+npm run coach -- prompt plan-week 2026-W38     # rules + your data + the JSON schema
+npm run coach -- apply week 2026-W38 plan.json # validated, then stored
+```
+
+The weekly rhythm:
+
+```bash
+npm run coach -- apply digest digest.txt            # keep what you wrote
+npm run coach -- prompt review @digest.txt          # hand this to Claude Code
+npm run coach -- apply review digest.txt review.json
+npm run coach -- apply week 2026-W38 plan.json
+```
+
+Other commands: `context` (just the data the coach reads), `schema <kind>` (the
+reply shape), `prompt build-plan` / `apply plan` for the macrocycle. Add
+`--user=<id>` when the database holds more than one account.
+
+Weeks written this way are stored with `source: "claude-code"`, so the app can
+tell them apart from API-generated ones. Anything malformed is rejected with
+per-field errors before it reaches the database.
+
 ## Google sign-in
 
 Optional, and only needed for more than one person.
