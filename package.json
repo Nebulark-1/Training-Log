@@ -1,0 +1,19 @@
+{
+  "name": "volume-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Training log that syncs Strava and plans each week with Claude",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --experimental-sqlite --no-warnings server/index.js",
+    "dev": "node --experimental-sqlite --no-warnings --watch server/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "express": "^5.1.0",
+    "zod": "^4.5.4"
+  }
+}

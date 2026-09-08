@@ -1,126 +1,154 @@
 # Volume Ledger
 
-A training log that pulls real data out of Strava, shows what to do each day, and
-asks Claude to plan each week toward a stated goal — currently 75 running miles a
-week, with bike and swim volume held alongside it.
+A training log that runs on your own machine. It pulls your real data from
+Strava, shows what to do each day, takes your notes after every session, and
+asks Claude to plan each week toward a goal you set — currently 75 running
+miles a week, with bike and swim volume held alongside it.
 
-**The tracker:** https://claude.ai/code/artifact/70790b1b-8471-4c10-ac2b-3986c80df434
-
-## How the pieces fit
-
-A published Claude artifact can't make network calls to Strava — the sandbox blocks
-everything except a few script CDNs. So the sync runs here, on your machine, and the
-page imports the file it writes.
-
-```
-Strava API ──> sync/strava_sync.py ──> data/import.json ──> [Import] in the page ──> artifact database
-                                                                                          │
-                                        page reads plan + sessions + your feedback  <──────┘
-                                                          │
-                                                          └──> Claude (in the page) writes the next week back
+```bash
+npm install
+npm start          # http://localhost:4317
 ```
 
-Everything the page shows lives in the artifact's own database: the goal, the
-macrocycle, each planned week, every session, your per-run notes, and the Monday
-digests. Claude Code can read and write that same store, so plans can also be built
-from a terminal session.
+Nothing in `.env` is required to boot. With no configuration you get the local
+account, the seeded plan, and manual logging; Strava and Claude switch on as you
+add credentials.
 
-## One-time setup
+## How it fits together
 
-1. **Create a Strava API application** at https://www.strava.com/settings/api.
-   Name it anything. Set **Authorization Callback Domain** to `127.0.0.1` — the auth
-   step catches the redirect locally, so this must match.
+```
+                     ┌─────────────────────────────┐
+  Google OAuth ────▶ │  localhost:4317  (Express)  │
+  Strava OAuth ────▶ │                             │ ──▶ SQLite (data/ledger.db)
+  Anthropic API ◀─── │  per-user tokens, encrypted │      every row keyed by user
+                     └─────────────────────────────┘
+                                   │
+                          public/  browser app
+```
 
-2. **Put the credentials in `sync/.env`** (copy `sync/.env.example`). This file is
-   gitignored and never leaves your machine.
+Every table is keyed by `user_id`, so the same code serves one athlete on a
+laptop or many signed-in accounts on a host. Provider tokens are encrypted at
+rest with a key in `data/.app-secret` (generated on first run; set `APP_SECRET`
+before running more than one instance).
+
+| Path | What it is |
+| --- | --- |
+| `server/index.js` | Express app and the JSON API |
+| `server/auth.js` | Google OAuth, sessions, the local dev account |
+| `server/strava.js` | Strava OAuth, token refresh, sync and normalization |
+| `server/coach.js` | Claude calls — context building and structured plans |
+| `server/db.js` | SQLite schema and queries (`node:sqlite`, no native build) |
+| `server/seed.js` | First-run seeding, re-based onto the current week |
+| `public/` | The browser app (`app.js`, `app.css`, `lib/dates.js`) |
+| `seed/` | The starting plan, from the original 12-month plan document |
+
+`public/lib/dates.js` is imported by both the server and the browser, so ISO
+week keys can never drift between them.
+
+## Connecting Strava
+
+1. Create an application at https://www.strava.com/settings/api.
+   Set **Authorization Callback Domain** to `localhost`.
+2. Put the credentials in `.env`:
 
    ```
    STRAVA_CLIENT_ID=12345
-   STRAVA_CLIENT_SECRET=your-secret
+   STRAVA_CLIENT_SECRET=...
    ```
 
-3. **Authorize once.** A browser window opens; approve, and the token is cached in
-   `sync/.tokens.json` and refreshed automatically from then on.
+3. Restart, then **Setup → Connect Strava**. Approve the "view private
+   activities" permission — without it the API hides your training.
 
-   ```
-   python sync/strava_sync.py auth
-   ```
+Sync is a button, not a background job. It is incremental: each sync starts a
+week before your newest stored activity, so edited and late-uploaded sessions
+get picked up. **Full re-sync** reaches back 180 days.
 
-## Each sync
+Synced per session: distance, moving and elapsed time, pace (sec/mile, or per
+100 yd for swims), elevation in feet, average and max heart rate, cadence, power
+for rides, gear, the activity description, per-mile splits and laps for the last
+28 days, and Strava's own long-run / workout / race labels.
 
-```
-python sync/strava_sync.py pull
-```
+**Lifting weights are the exception.** Strava records a weight session's
+duration and heart rate but not what you lifted, so sets, reps and load are
+entered in the app — open any lift session and the note sheet has a lift table.
 
-Pulls the last 180 days, and fetches per-mile splits, laps and HR for sessions in the
-last 28 days. Then open the tracker, go to **Setup**, and import `data/import.json`.
-Re-importing is cheap: only new or changed sessions are written.
+## Connecting Claude
 
-Useful flags:
+There is no OAuth flow for a Claude.ai subscription, so a web app cannot spend
+your Claude plan. Coaching runs on the Anthropic API instead, and there are
+three ways to pay for it:
 
-| flag | does |
-| --- | --- |
-| `--days 365` | pull further back |
-| `--since 2026-01-01` | pull from a date |
-| `--detail-days 45` | splits and laps for a wider recent window |
-| `--detail-max 60` | raise the per-run cap on detail API calls |
-| `--refresh` | ignore the cached activity detail |
+| Option | Set up | Billed to |
+| --- | --- | --- |
+| An `ant auth login` profile on this machine | `ant auth login` | you, no key to manage |
+| A server key | `ANTHROPIC_API_KEY` in `.env` | whoever runs the server |
+| Each user's own key | **Setup → Your Anthropic API key** | that user |
 
-`python sync/strava_sync.py status` shows credential, token and last-pull state.
-Strava allows roughly 100 requests per 15 minutes; the detail cache in `data/cache/`
-means a re-run only spends calls on genuinely new activities.
+The user's own key wins when present, then the server key, then an ambient
+profile. User keys are stored encrypted and used only for that user's requests.
+Set `ALLOW_USER_KEYS=0` to turn that off.
 
-## What gets synced
+Requests use `claude-opus-5` with adaptive thinking, `effort: high`, structured
+outputs validated against a schema before anything is stored, and server-side
+refusal fallbacks (set `CLAUDE_FALLBACKS=0` to disable). Every call is recorded
+in the `coach_runs` table with model, token usage and duration.
 
-Distance, moving and elapsed time, pace (sec/mile, or per 100 yd for swims), elevation
-in feet, average and max heart rate, cadence, power for rides, gear, the activity
-description, per-mile splits and laps, and Strava's own long-run / workout / race
-labels.
+## Google sign-in
 
-**Lifting weights are the exception.** Strava records a weight session's duration and
-heart rate but not what you actually lifted, so sets, reps and load are entered in the
-page — open any lift session and the note sheet has a lift table.
+Optional, and only needed for more than one person.
+
+1. Google Cloud console → APIs & Services → Credentials → **OAuth client ID**
+   (Web application).
+2. Authorized redirect URI: `http://localhost:4317/auth/google/callback`
+3. Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env` and restart.
+
+With those set the local account is disabled and the sign-in page offers Google.
+The local account only works when `NODE_ENV` is not `production`, Google is not
+configured, and the server is bound to a loopback address.
 
 ## Using it
 
 **Every session** — the day's prescription sits at the top. Once Strava has the
-activity, "How did it feel?" opens a note: RPE, how the body felt, knee pain 0–10 and
-where, plus free text. Those notes are what make the coaching worth anything; the
-numbers alone can't tell a good week from a barely-survived one.
+activity, "How did it feel?" opens a note: RPE, how the body felt, knee pain
+0–10 and where, plus free text. Those notes are what make the coaching worth
+anything; the numbers alone can't tell a good week from a barely-survived one.
 
-**Every Monday** — write the digest in the Coach section and send it. Claude reads the
-week's plan against what you actually did, every session note, and the digest, then
-returns a verdict (push / hold / back off), what it noticed in the numbers, specific
-adjustments, and the coming week's plan written day by day.
+**Every Monday** — write the digest in the Coach section and send it. Claude
+reads the week's plan against what you actually did, every session note, and the
+digest, then returns a verdict (push / hold / back off), what it noticed in the
+numbers, specific adjustments, and the coming week planned day by day.
 
-**When the goal changes** — edit it in Setup, then **Rebuild from my history** in The
-plan. Claude sets the timeline and the phases from the volume your recent weeks
+**When the goal changes** — edit it in Setup, then **Rebuild from my history**.
+Claude sets the timeline and the phases from the volume your recent weeks
 actually show, rather than from an assumption about where you should be.
 
 The coach works under fixed rules: volume rises at most ~10% or 5 miles a week,
-every fourth week deloads, at most two hard running days and never back to back, and
-any of the knee red flags (gait change, pain rising during a run, next-morning
-swelling, pain at rest, anything above 3/10) drops volume back and refers you out
-rather than programming through it. A week that felt great is treated as a reason to
-hold the progression, not to exceed it.
+every fourth week deloads, at most two hard running days and never back to back,
+and any of the knee red flags (gait change, pain rising during a run,
+next-morning swelling, pain at rest, anything above 3/10) drops volume back and
+refers you out rather than programming through it. A week that felt great is
+treated as a reason to hold the progression, not to exceed it.
 
-## Layout
+## If you open this up to other people
 
-```
-app/volume-ledger.html      the tracker (published as the artifact above)
-sync/strava_sync.py         Strava OAuth + pull + normalize (standard library only)
-sync/.env                   your Strava credentials — gitignored
-sync/sync.cmd               double-click wrapper for a pull
-seed/                       the starting plan, taken from the 12-month plan document
-data/                       synced output and caches — gitignored
-```
+Three things that are not code problems:
 
-## Notes
+- **Strava's rate limits are per application, not per user** — about 200
+  requests every 15 minutes and 2,000 a day by default. A handful of users is
+  fine; past that you need an increased-quota request from Strava, and syncs
+  need queueing. The Setup panel shows current usage after each sync.
+- **Strava's API agreement** governs what you may store, display and share, and
+  it restricts building products that replicate Strava. Read it before charging
+  anyone.
+- **Inference costs money.** Per-user keys ("bring your own key") is the setting
+  that makes this sustainable — it is already built, and on by default.
 
-- The seeded plan is the 52-week ramp from the original plan document, which assumes a
-  start near 28 miles a week. It is a placeholder: sync, then rebuild the plan.
-- The page keeps roughly the last 14 weeks in view. Older sessions stay in the database
-  and are still exportable; the database caps at 5,000 documents, which is years of
-  training.
-- **Export as JSON** in the Log section downloads everything — plan, sessions, notes,
-  digests — as a backup.
+Also worth knowing: auto-sync via Strava webhooks needs a public HTTPS endpoint,
+which localhost is not. That is why sync is a button here. Behind a real domain,
+add the webhook subscription and the same `syncUser()` runs on a push.
+
+## Data
+
+Everything lives in `data/ledger.db`. **Export everything** in Setup downloads
+the whole log — plan, sessions, notes, digests — as JSON. Deleting `data/` resets
+the app; the seeded plan comes back on the next sign-in.

@@ -1,8 +1,10 @@
-# secrets and tokens
-sync/.env
-sync/.tokens.json
-
-# synced data and caches
+# secrets, tokens, database
+.env
 data/
+
+# dependencies
+node_modules/
+
+# python leftovers
 __pycache__/
 *.pyc

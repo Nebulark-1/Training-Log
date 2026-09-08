@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volume Ledger</title>
+<meta name="description" content="Training log that syncs Strava and plans each week with Claude.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128211;</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<!-- sign-in ------------------------------------------------------------- -->
+<div class="shell" id="gate" hidden>
+  <div class="gate">
+    <p class="eyebrow">Training ledger</p>
+    <h1>Volume Ledger</h1>
+    <p>Your Strava data, a plan that adapts to it, and a coach that reads your
+    own notes before it tells you what to run. Everything stays on this machine.</p>
+    <div class="btnrow" id="gateActions"></div>
+    <p class="sig" id="gateNote"></p>
+  </div>
+</div>
+
+<!-- app ----------------------------------------------------------------- -->
+<div class="shell" id="app" hidden>
+  <header class="masthead">
+    <div class="mh-left">
+      <p class="eyebrow">Training ledger</p>
+      <h1>Volume Ledger</h1>
+      <p class="goal" id="goalLine">Loading&hellip;</p>
+    </div>
+    <div class="mh-right">
+      <div class="who" id="who"></div>
+      <div class="phasechip" id="phaseChip"><s>Plan</s><b>&mdash;</b></div>
+      <div class="weekmeter" id="weekMeter"></div>
+      <div class="syncline" id="syncLine"></div>
+    </div>
+  </header>
+
+  <nav class="jump">
+    <a href="#today">Today</a><a href="#week">Week</a><a href="#volume">Volume</a>
+    <a href="#coach">Coach</a><a href="#log">Log</a><a href="#plan">Plan</a><a href="#setup">Setup</a>
+  </nav>
+
+  <section id="today">
+    <div class="shead"><h2>Today</h2><span class="note" id="todayNote"></span></div>
+    <div class="today" id="todayCard"><div class="rest">Loading&hellip;</div></div>
+    <div class="btnrow" id="todayActions" style="margin-top:14px"></div>
+  </section>
+
+  <section id="week">
+    <div class="shead"><h2>This week</h2><span class="note" id="weekNote"></span></div>
+    <div class="wk" id="weekList"></div>
+    <div class="btnrow" id="weekActions" style="margin-top:16px"></div>
+  </section>
+
+  <section id="volume">
+    <div class="shead"><h2>Volume</h2><span class="note" id="volNote"></span></div>
+    <div class="chartwrap" id="chart"></div>
+    <p class="legend">
+      <span><i style="background:var(--run)"></i>run, actual</span>
+      <span><i style="border:1px solid var(--run)"></i>run, planned</span>
+      <span><i style="background:var(--bike)"></i>bike hours</span>
+      <span><i style="background:var(--swim)"></i>swim sessions</span>
+      <span id="targetLeg"></span>
+    </p>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section id="coach">
+    <div class="shead"><h2>Coach</h2><span class="note" id="coachNote2"></span></div>
+    <div class="coach" id="coachCard"></div>
+    <div class="digest">
+      <label for="digestBox" id="digestLabel">Weekly digest</label>
+      <textarea id="digestBox" placeholder="Sleep, legs, knee, motivation, life load. What went well, what felt off, anything you cut or added, and how you want the coming week to go."></textarea>
+      <div class="btnrow" style="margin-top:11px" id="digestActions"></div>
+      <div class="thinking" id="coachStatus" hidden></div>
+    </div>
+  </section>
+
+  <section id="log">
+    <div class="shead"><h2>Log</h2><span class="note" id="logNote"></span></div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Date</th><th>Sport</th><th class="r">Dist</th><th class="r">Time</th>
+        <th class="r">Pace</th><th class="r">HR</th><th class="r">Elev</th>
+        <th class="r">RPE</th><th>Feel</th><th></th>
+      </tr></thead>
+      <tbody id="logBody"></tbody>
+    </table></div>
+    <div class="btnrow" style="margin-top:14px" id="logActions"></div>
+  </section>
+
+  <section id="plan">
+    <div class="shead"><h2>The plan</h2><span class="note" id="planNote"></span></div>
+    <p class="coachtext" id="planRationale" style="margin-bottom:20px"></p>
+    <div class="phases" id="phaseList"></div>
+    <div id="planExtras"></div>
+    <div class="btnrow" style="margin-top:18px" id="planActions"></div>
+  </section>
+
+  <section id="setup">
+    <div class="shead"><h2>Setup</h2></div>
+    <div class="grid2">
+      <div>
+        <div class="conn" id="stravaConn"></div>
+        <div class="conn" id="claudeConn"></div>
+      </div>
+      <div>
+        <h3 style="font-size:19px; margin-bottom:9px">Goal</h3>
+        <p class="help">This is what the coach plans toward. Change it, then rebuild the plan.</p>
+        <div class="field"><label for="goalText">Goal</label>
+          <textarea id="goalText" style="min-height:74px"></textarea></div>
+        <div class="field"><label for="goalMpw">Target run miles per week</label>
+          <input type="number" id="goalMpw" min="10" max="140" step="1"></div>
+        <div class="field"><label for="goalDate">Target date (optional)</label>
+          <input type="date" id="goalDate"></div>
+        <div class="field"><label for="goalKeep">Keep alongside running</label>
+          <input type="text" id="goalKeep" placeholder="2 bike sessions, 1-2 swims, 2 lifts"></div>
+        <div class="field"><label for="goalLimits">Hard limits and injury rules</label>
+          <textarea id="goalLimits" style="min-height:74px"></textarea></div>
+        <div class="btnrow"><button id="saveGoal">Save goal</button>
+          <span class="thinking" id="goalStatus"></span></div>
+        <div class="btnrow" style="margin-top:22px">
+          <button id="exportBtn">Export everything</button>
+          <button id="signOut">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
