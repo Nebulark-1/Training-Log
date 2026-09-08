@@ -669,7 +669,9 @@ let pending = false;
 function render() {
   if (pending) return;
   pending = true;
-  requestAnimationFrame(() => {
+  // A timeout, not requestAnimationFrame: rAF never fires in a hidden tab, so
+  // a page loaded in the background would sit on "Loading..." until focused.
+  setTimeout(() => {
     pending = false;
     try {
       renderMast(); renderToday(); renderWeek(); renderChart();
