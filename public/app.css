@@ -335,3 +335,12 @@ input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; colo
 @media (prefers-reduced-motion:reduce){.working:after{animation-duration:2.4s}}
 .elapsed{font-variant-numeric:tabular-nums}
 
+
+/* ---- day navigation in the Today panel ---------------------------------- */
+.daynav{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.daynav button{
+  min-width:34px; padding:1px 10px 4px; font-size:20px; line-height:1.15;
+  color:var(--mut);
+}
+.daynav button:hover:not(:disabled){color:var(--ink); border-color:var(--ink)}
+.daynav .today-reset{min-width:0; font-size:14px; padding:5px 11px; line-height:1.3}

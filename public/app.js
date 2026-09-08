@@ -10,6 +10,8 @@ const state = {
   data: null,
   busy: false,
   abort: null,
+  // Which day the Today panel is showing, as an offset from the real today.
+  dayOffset: 0,
 };
 
 const SPORTS = {
@@ -61,6 +63,32 @@ const sessions = () => state.data?.sessions || [];
 const feedbackFor = (id) => state.data?.feedback?.[id] || null;
 const weekDoc = (k) => state.data?.weeks?.[k] || null;
 const plan = () => state.data?.plan || null;
+
+/** The date the Today panel is showing. */
+function viewDate() {
+  const d = parseYmd(today());
+  d.setDate(d.getDate() + state.dayOffset);
+  return ymd(d);
+}
+function relDayLabel(date) {
+  const diff = daysBetween(today(), date);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  const d = parseYmd(date);
+  return `${DOW[(d.getDay() + 6) % 7]}, ${MON[d.getMonth()]} ${d.getDate()}`;
+}
+function shiftDay(n) {
+  state.dayOffset = n === 0 ? 0 : Math.max(-120, Math.min(120, state.dayOffset + n));
+  render();
+  // Arrow keys pressed from further down the page would otherwise change
+  // something off-screen with no visible effect.
+  const section = document.getElementById('today');
+  const box = section.getBoundingClientRect();
+  if (box.bottom < 0 || box.top > window.innerHeight) {
+    section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+}
 
 let toastTimer = null;
 function toast(message, isError = false) {
@@ -223,18 +251,26 @@ function actualLine(s) {
 }
 
 function renderToday() {
-  const week = thisWeekKey();
-  const wk = weekDoc(week);
-  const idx = daysBetween(ymd(mondayOf(week)), today());
-  const day = wk?.days?.[idx] || null;
-  const planned = day?.sessions || [];
-  const actual = sessionsOn(today());
-  const d = parseYmd(today());
+  const date = viewDate();
+  const offset = state.dayOffset;
+  const d = parseYmd(date);
+  const wkKey = isoWeek(d);
+  const wk = weekDoc(wkKey);
+  const idx = daysBetween(ymd(mondayOf(wkKey)), date);
+  const planned = wk?.days?.[idx]?.sessions || [];
+  const actual = sessionsOn(date);
+  const isFuture = date > today();
 
-  const head = '<div class="today-head"><span class="today-date">'
-    + `${DOW[idx < 0 || idx > 6 ? 0 : idx]}, ${MON[d.getMonth()]} ${d.getDate()}`
-    + `<span>${esc(week)}</span></span>`
-    + `<span class="today-tag">${planned.length ? 'prescribed' : 'no session prescribed'}</span></div>`;
+  $('todayHeading').textContent = relDayLabel(date);
+
+  const head = '<div class="today-head"><div class="daynav">'
+    + '<button data-day="-1" aria-label="Previous day" title="Previous day (left arrow)">&lsaquo;</button>'
+    + `<span class="today-date">${DOW[(d.getDay() + 6) % 7]}, ${MON[d.getMonth()]} ${d.getDate()}`
+    + `<span>${esc(wkKey)}</span></span>`
+    + '<button data-day="1" aria-label="Next day" title="Next day (right arrow)">&rsaquo;</button>'
+    + (offset !== 0 ? '<button data-day="0" class="today-reset">Back to today</button>' : '')
+    + '</div>'
+    + `<span class="today-tag">${planned.length ? 'prescribed' : wk ? 'nothing prescribed' : 'not planned'}</span></div>`;
 
   let rows = '';
   for (const ps of planned) {
@@ -251,7 +287,9 @@ function renderToday() {
       + `${done ? 'done' : ps.optional ? 'optional' : 'planned'}</span>`
       + (done
         ? `<button data-fb="${esc(match[0].id)}">${feedbackFor(match[0].id) ? 'Edit note' : 'How did it feel?'}</button>`
-        : `<button data-log="${esc(ps.sport)}">Log it</button>`)
+        : isFuture
+          ? ''
+          : `<button data-log="${esc(ps.sport)}" data-log-date="${date}">Log it</button>`)
       + '</div></div>';
   }
 
@@ -267,20 +305,27 @@ function renderToday() {
   }
 
   if (!rows) {
-    rows = `<div class="rest">${wk
-      ? "Rest day — nothing prescribed. Adaptation happens on the day you don't run."
-      : 'No week planned yet. Ask the coach for one below.'}</div>`;
+    rows = `<div class="rest">${
+      !wk
+        ? `No plan for ${esc(wkKey)} yet.`
+        : isFuture
+          ? 'Rest day. Nothing prescribed.'
+          : "Rest day — nothing prescribed. Adaptation happens on the day you don't run."
+    }</div>`;
   }
   $('todayCard').innerHTML = head + `<div class="slots">${rows}</div>`;
 
   const nf = needsFeedback();
   $('todayNote').textContent = nf.length
     ? `${nf.length} session${nf.length === 1 ? '' : 's'} need${nf.length === 1 ? 's' : ''} a note`
-    : '';
+    : 'arrow keys change the day';
 
   const acts = [];
+  if (!wk && state.data?.claude?.available) {
+    acts.push(`<button class="solid" data-plan="${wkKey}">Plan ${esc(wkKey)}</button>`);
+  }
   if (nf.length) acts.push(`<button class="solid" id="fbNext">Add notes (${nf.length})</button>`);
-  acts.push('<button id="logManual">Log a session</button>');
+  if (!isFuture) acts.push('<button id="logManual">Log a session</button>');
   if (state.data?.connections?.strava?.connected) {
     acts.push('<button id="syncNow">Sync Strava</button>');
   }
@@ -708,6 +753,18 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
 });
 
+// Left/right move the Today panel a day. Ignored while typing, while a sheet
+// is open, or with modifiers held, so it never fights a field or the browser.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  if (!state.data || !$('sheet').hidden) return;
+  const el = document.activeElement;
+  if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+  e.preventDefault();
+  shiftDay(e.key === 'ArrowLeft' ? -1 : 1);
+});
+
 // --- feedback sheet --------------------------------------------------------
 function feedbackSheet(sessionId) {
   const s = sessions().find((x) => x.id === sessionId);
@@ -827,7 +884,7 @@ function feedbackSheet(sessionId) {
 }
 
 // --- manual session sheet --------------------------------------------------
-function manualSheet(sport) {
+function manualSheet(sport, date = today()) {
   openSheet(
     '<div class="sheet-head"><div><h3>Log a session</h3>'
     + "<p>For anything Strava didn't record</p></div>"
@@ -836,7 +893,7 @@ function manualSheet(sport) {
     + ['run', 'bike', 'swim', 'lift', 'strength', 'mobility', 'cross', 'other']
       .map((k) => `<option value="${k}"${k === sport ? ' selected' : ''}>${SPORTS[k]}</option>`).join('')
     + '</select></div>'
-    + `<div class="field"><label for="mDate">Date</label><input type="date" id="mDate" value="${today()}"></div>`
+    + `<div class="field"><label for="mDate">Date</label><input type="date" id="mDate" value="${date}"></div>`
     + '<div class="field"><label for="mName">What was it</label>'
     + '<input type="text" id="mName" placeholder="Easy 6 with strides"></div>'
     + '<div class="grid2" style="gap:14px">'
@@ -982,8 +1039,10 @@ document.addEventListener('click', async (e) => {
 
   const fb = t.closest('[data-fb]');
   if (fb) { feedbackSheet(fb.getAttribute('data-fb')); return; }
+  const day = t.closest('[data-day]');
+  if (day) { shiftDay(Number(day.getAttribute('data-day'))); return; }
   const lg = t.closest('[data-log]');
-  if (lg) { manualSheet(lg.getAttribute('data-log')); return; }
+  if (lg) { manualSheet(lg.getAttribute('data-log'), lg.getAttribute('data-log-date') || viewDate()); return; }
   const pw = t.closest('[data-plan]');
   if (pw) { doPlanWeek(pw.getAttribute('data-plan')); return; }
 
@@ -994,8 +1053,10 @@ document.addEventListener('click', async (e) => {
       return;
     }
     case 'logManual':
+      manualSheet('run', viewDate());
+      return;
     case 'logManual2':
-      manualSheet('run');
+      manualSheet('run', today());
       return;
     case 'syncNow':
     case 'syncNow2':
