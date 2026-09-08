@@ -1,0 +1,8 @@
+# secrets and tokens
+sync/.env
+sync/.tokens.json
+
+# synced data and caches
+data/
+__pycache__/
+*.pyc

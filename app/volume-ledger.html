@@ -1,0 +1,1853 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<title>Volume Ledger</title>
+<style>
+:root {
+  --paper:#E9EBE3; --card:#F3F4EE; --raise:#FBFBF8;
+  --ink:#18212A; --ink2:#37424C; --mut:#59636D; --faint:#8C949A;
+  --line:#CBCFC2; --line2:#DEE1D8;
+  --run:#A63A4A; --bike:#2E6F63; --swim:#35618F; --lift:#525C64;
+  --warn:#A9761F; --flag:#7E1F2C; --flag-ink:#F3F4EE;
+  --ghost:rgba(24,33,42,.05); --ghost2:rgba(24,33,42,.025);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#151A1E; --card:#1C2227; --raise:#232A30;
+    --ink:#E4E7E0; --ink2:#C7CDC6; --mut:#98A29A; --faint:#6F7A78;
+    --line:#333B40; --line2:#262D32;
+    --run:#D97F86; --bike:#63AFA0; --swim:#7BA5D4; --lift:#9AA6AE;
+    --warn:#D2A155; --flag:#B7404F; --flag-ink:#F6E9EA;
+    --ghost:rgba(228,231,224,.055); --ghost2:rgba(228,231,224,.022);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#151A1E; --card:#1C2227; --raise:#232A30;
+  --ink:#E4E7E0; --ink2:#C7CDC6; --mut:#98A29A; --faint:#6F7A78;
+  --line:#333B40; --line2:#262D32;
+  --run:#D97F86; --bike:#63AFA0; --swim:#7BA5D4; --lift:#9AA6AE;
+  --warn:#D2A155; --flag:#B7404F; --flag-ink:#F6E9EA;
+  --ghost:rgba(228,231,224,.055); --ghost2:rgba(228,231,224,.022);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:Newsreader,Georgia,'Times New Roman',serif;
+  font-size:17px; line-height:1.6; -webkit-text-size-adjust:100%;
+}
+.cond,h1,h2,h3,th,button,input,select,textarea,.data,.eyebrow,.chip,.tag,.num{
+  font-family:'Barlow Condensed','Arial Narrow',Haettenschweiler,sans-serif;
+}
+h1,h2,h3{font-weight:600; line-height:1.08; margin:0; letter-spacing:.004em; text-wrap:balance}
+.num,.data,table{font-variant-numeric:tabular-nums}
+a{color:var(--run); text-decoration-thickness:1px; text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--swim); outline-offset:2px}
+
+.shell{max-width:1040px; margin:0 auto; padding:0 20px 96px}
+
+/* masthead ------------------------------------------------------------- */
+.masthead{
+  display:flex; gap:28px; flex-wrap:wrap; align-items:flex-end;
+  justify-content:space-between; padding:34px 0 20px;
+}
+.eyebrow{
+  font-size:12.5px; font-weight:500; text-transform:uppercase; letter-spacing:.14em;
+  color:var(--mut); margin:0 0 6px;
+}
+h1{font-size:clamp(32px,6vw,50px)}
+.goal{margin:10px 0 0; max-width:46ch; color:var(--ink2); font-size:16.5px; line-height:1.5}
+.mh-right{display:flex; flex-direction:column; align-items:flex-start; gap:9px; min-width:250px}
+.phasechip{
+  font-size:15px; color:var(--ink); border:1px solid var(--line);
+  background:var(--card); padding:4px 11px; display:inline-flex; gap:9px; align-items:center;
+}
+.phasechip b{font-weight:600}
+.phasechip s{text-decoration:none; color:var(--mut)}
+.weekmeter{width:100%}
+.wm-top{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.wm-big{font-size:31px; font-weight:600; line-height:1}
+.wm-big small{font-size:17px; color:var(--mut); font-weight:500}
+.wm-lab{font-size:12.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--mut)}
+.wm-track{height:5px; background:var(--ghost); margin-top:8px; position:relative; overflow:hidden}
+.wm-fill{height:100%; background:var(--run); width:0}
+.wm-tick{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--mut)}
+.syncline{font-size:14px; color:var(--mut)}
+.syncline b{color:var(--ink); font-weight:500}
+.syncline.stale b{color:var(--warn)}
+
+/* nav ------------------------------------------------------------------ */
+.jump{
+  position:sticky; top:0; z-index:30; display:flex; gap:2px; flex-wrap:wrap;
+  background:var(--paper); border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line); margin-bottom:34px;
+}
+.jump a{
+  font-family:'Barlow Condensed',sans-serif; font-size:14px; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--mut); text-decoration:none; padding:9px 13px 8px;
+}
+.jump a:hover{color:var(--ink); background:var(--ghost2)}
+
+section{margin:0 0 52px; scroll-margin-top:52px}
+.shead{
+  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  border-bottom:1.5px solid var(--ink); padding-bottom:7px; margin-bottom:20px;
+}
+.shead h2{font-size:25px}
+.shead .note{font-size:14px; color:var(--mut); margin-left:auto; font-family:'Barlow Condensed',sans-serif}
+
+/* today ---------------------------------------------------------------- */
+.today{background:var(--card); border:1px solid var(--line); border-top:3px solid var(--ink)}
+.today-head{
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  flex-wrap:wrap; padding:16px 20px 13px; border-bottom:1px solid var(--line2);
+}
+.today-date{font-size:22px; font-weight:600}
+.today-date span{color:var(--mut); font-weight:500; font-size:16px; margin-left:9px}
+.today-tag{font-size:13px; text-transform:uppercase; letter-spacing:.11em; color:var(--mut)}
+.slots{display:flex; flex-direction:column}
+.slot{display:grid; grid-template-columns:4px 1fr auto; gap:0 16px; border-bottom:1px solid var(--line2)}
+.slot:last-child{border-bottom:0}
+.slot-rule{background:var(--line)}
+.slot.run .slot-rule{background:var(--run)}
+.slot.bike .slot-rule{background:var(--bike)}
+.slot.swim .slot-rule{background:var(--swim)}
+.slot.lift .slot-rule,.slot.strength .slot-rule,.slot.mobility .slot-rule{background:var(--lift)}
+.slot-main{padding:14px 0 14px 4px; min-width:0}
+.slot-title{font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:600}
+.slot-sport{font-size:12.5px; text-transform:uppercase; letter-spacing:.13em; color:var(--mut); margin-bottom:3px}
+.slot-detail{font-size:16px; color:var(--ink2); margin:5px 0 0; max-width:62ch; line-height:1.5}
+.slot-actual{
+  display:flex; gap:6px 18px; flex-wrap:wrap; margin-top:9px;
+  font-family:'Barlow Condensed',sans-serif; font-size:16px; color:var(--ink);
+  padding-top:9px; border-top:1px dotted var(--line);
+}
+.slot-actual i{color:var(--mut); font-style:normal; font-size:12.5px;
+  text-transform:uppercase; letter-spacing:.1em; margin-right:5px}
+.slot-side{padding:14px 20px 14px 0; display:flex; flex-direction:column; align-items:flex-end; gap:8px}
+.rest{padding:20px; color:var(--mut); font-style:italic}
+
+/* chips / buttons ------------------------------------------------------ */
+.chip{
+  font-size:12.5px; text-transform:uppercase; letter-spacing:.1em; padding:3px 8px;
+  border:1px solid var(--line); color:var(--mut); white-space:nowrap; background:transparent;
+}
+.chip.done{border-color:var(--ink); color:var(--ink)}
+.chip.miss{border-color:var(--warn); color:var(--warn)}
+.chip.pain{background:var(--flag); border-color:var(--flag); color:var(--flag-ink)}
+.chip.deload{border-style:dashed}
+.chip.opt{font-style:italic; letter-spacing:.06em; text-transform:none; font-size:13.5px}
+button{
+  font-size:15px; letter-spacing:.03em; padding:7px 14px; cursor:pointer;
+  background:var(--raise); color:var(--ink); border:1px solid var(--line);
+}
+button:hover:not(:disabled){border-color:var(--ink)}
+button:disabled{opacity:.45; cursor:default}
+button.solid{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+button.solid:hover:not(:disabled){background:var(--ink2)}
+button.link{background:none; border:0; padding:2px 0; color:var(--run); text-decoration:underline;
+  text-underline-offset:3px; font-size:15px}
+.btnrow{display:flex; gap:9px; flex-wrap:wrap; align-items:center}
+
+/* week table ----------------------------------------------------------- */
+.wk{border-top:1px solid var(--line)}
+.day{
+  display:grid; grid-template-columns:74px 1fr 210px 70px; gap:14px;
+  align-items:center; padding:11px 8px 11px 12px; border-bottom:1px solid var(--line2);
+  position:relative; background:transparent;
+}
+.day.is-today{background:var(--ghost)}
+.day.is-today::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--ink)}
+.day.past{color:var(--ink2)}
+.day-name{font-family:'Barlow Condensed',sans-serif; font-size:16px}
+.day-name b{display:block; font-size:17px; font-weight:600; color:var(--ink)}
+.day-name span{color:var(--mut); font-size:14px}
+.day-plan{display:flex; gap:7px 12px; flex-wrap:wrap; font-family:'Barlow Condensed',sans-serif; font-size:16.5px}
+.pl{display:inline-flex; gap:6px; align-items:baseline; white-space:nowrap}
+.pl s{text-decoration:none; width:7px; height:7px; display:inline-block; flex:none; transform:translateY(-1px)}
+.pl.run s{background:var(--run)} .pl.bike s{background:var(--bike)}
+.pl.swim s{background:var(--swim)} .pl.lift s,.pl.strength s,.pl.mobility s{background:var(--lift)}
+.pl em{color:var(--mut); font-style:normal}
+.day-act{font-family:'Barlow Condensed',sans-serif; font-size:16px; color:var(--ink); display:flex;
+  gap:4px 14px; flex-wrap:wrap}
+.day-act .dash{color:var(--faint)}
+.day-fb{display:flex; justify-content:flex-end}
+.fbdot{width:11px; height:11px; border:1px solid var(--mut); display:inline-block}
+.fbdot.has{background:var(--ink); border-color:var(--ink)}
+.fbdot.pain{background:var(--flag); border-color:var(--flag)}
+
+/* chart ---------------------------------------------------------------- */
+.chartwrap{overflow-x:auto}
+.chartwrap svg{width:100%; min-width:640px; height:auto; display:block; overflow:visible}
+.legend{display:flex; gap:8px 22px; flex-wrap:wrap; font-family:'Barlow Condensed',sans-serif;
+  font-size:14.5px; color:var(--mut); margin:12px 0 0}
+.legend span{display:inline-flex; gap:7px; align-items:center}
+.legend i{width:11px; height:11px; display:inline-block}
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:0;
+  border-top:1px solid var(--line); margin-top:26px}
+.stat{padding:14px 16px 15px; border-right:1px solid var(--line2)}
+.stat:last-child{border-right:0}
+.stat b{display:block; font-family:'Barlow Condensed',sans-serif; font-size:27px; font-weight:600; line-height:1}
+.stat i{font-style:normal; font-size:15px; color:var(--mut); font-family:'Barlow Condensed',sans-serif}
+.stat span{display:block; font-size:12.5px; text-transform:uppercase; letter-spacing:.11em;
+  color:var(--mut); margin-top:6px; font-family:'Barlow Condensed',sans-serif}
+
+/* coach ---------------------------------------------------------------- */
+.coach{background:var(--card); border-left:3px solid var(--run); padding:20px 24px 22px}
+.verdict{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:12px}
+.verdict b{font-family:'Barlow Condensed',sans-serif; font-size:23px; font-weight:600}
+.verdict .chip{align-self:center}
+.coachtext{max-width:66ch; margin:0}
+.coachtext p{margin:0 0 12px}
+.coachtext p:first-child{font-size:18.5px; line-height:1.55}
+.coachtext em{font-style:italic; color:var(--ink2)}
+.adj{margin:16px 0 0; padding:0; list-style:none; max-width:66ch}
+.adj li{display:flex; gap:11px; padding:7px 0; border-top:1px dotted var(--line); font-size:16px}
+.adj li:before{content:""; width:6px; height:6px; background:var(--run); flex:none; margin-top:9px}
+.flagbox{margin-top:16px; border:1px solid var(--flag); padding:12px 15px; max-width:66ch}
+.flagbox b{font-family:'Barlow Condensed',sans-serif; font-size:13px; text-transform:uppercase;
+  letter-spacing:.12em; color:var(--flag); display:block; margin-bottom:5px}
+.flagbox ul{margin:0; padding-left:18px} .flagbox li{margin:3px 0; font-size:16px}
+.digest{margin-top:26px}
+.digest label{display:block; font-family:'Barlow Condensed',sans-serif; font-size:13px;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--mut); margin-bottom:7px}
+textarea,input[type=text],input[type=number],input[type=date],select{
+  width:100%; background:var(--raise); color:var(--ink); border:1px solid var(--line);
+  padding:9px 11px; font-size:16px; line-height:1.5;
+}
+textarea{font-family:Newsreader,Georgia,serif; resize:vertical; min-height:112px}
+.thinking{font-family:'Barlow Condensed',sans-serif; color:var(--mut); font-size:15.5px}
+.thinking.err{color:var(--flag)}
+.stream{white-space:pre-wrap; font-size:15px; color:var(--mut); max-height:150px; overflow:auto;
+  border-left:2px solid var(--line); padding-left:12px; margin-top:12px}
+
+/* log ------------------------------------------------------------------ */
+.tablewrap{overflow-x:auto; border-top:1px solid var(--line)}
+table{border-collapse:collapse; width:100%; min-width:660px; font-size:16px}
+th{font-family:'Barlow Condensed',sans-serif; font-size:12.5px; text-transform:uppercase;
+  letter-spacing:.11em; color:var(--mut); text-align:left; font-weight:500;
+  padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap}
+td{font-family:'Barlow Condensed',sans-serif; padding:9px 10px; border-bottom:1px solid var(--line2);
+  white-space:nowrap; vertical-align:middle}
+td.name{font-family:Newsreader,Georgia,serif; white-space:normal; min-width:180px; font-size:16px}
+tbody tr:hover{background:var(--ghost2)}
+th.r,td.r{text-align:right}
+.sport{display:inline-flex; gap:7px; align-items:center}
+.sport s{text-decoration:none; width:8px; height:8px; display:inline-block}
+.sport.run s{background:var(--run)} .sport.bike s{background:var(--bike)}
+.sport.swim s{background:var(--swim)} .sport.lift s,.sport.strength s,.sport.mobility s{background:var(--lift)}
+.sport.walk s,.sport.hike s,.sport.cross s,.sport.other s{background:var(--faint)}
+
+/* plan ----------------------------------------------------------------- */
+.phases{display:grid; gap:0; border-top:1px solid var(--line)}
+.ph{display:grid; grid-template-columns:38px 1fr; gap:16px; padding:16px 8px 18px;
+  border-bottom:1px solid var(--line2)}
+.ph-n{font-family:'Barlow Condensed',sans-serif; font-size:30px; font-weight:600; color:var(--run); line-height:.95}
+.ph h3{font-size:21px}
+.ph-meta{font-family:'Barlow Condensed',sans-serif; font-size:15px; color:var(--mut); margin:3px 0 8px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.ph-meta s{text-decoration:none; width:13px; height:1px; background:var(--line); display:inline-block}
+.ph p{margin:0; max-width:64ch; font-size:16.5px}
+.ph.now{background:var(--ghost)}
+details{border-top:1px solid var(--line2); padding:10px 0}
+summary{font-family:'Barlow Condensed',sans-serif; font-size:16px; cursor:pointer; color:var(--mut)}
+summary:hover{color:var(--ink)}
+
+/* setup ---------------------------------------------------------------- */
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:26px}
+.field{margin-bottom:14px}
+.field label{display:block; font-family:'Barlow Condensed',sans-serif; font-size:12.5px;
+  text-transform:uppercase; letter-spacing:.11em; color:var(--mut); margin-bottom:5px}
+.help{font-size:15.5px; color:var(--mut); max-width:60ch; margin:0 0 14px}
+.help code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px;
+  background:var(--ghost); padding:1px 5px}
+.steps{margin:0 0 16px; padding-left:20px; max-width:60ch; font-size:16px}
+.steps li{margin-bottom:7px}
+.filerow{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; color:var(--mut);
+  background:none; border:0; padding:0; width:auto}
+
+/* sheet (modal) -------------------------------------------------------- */
+.sheet{position:fixed; inset:0; z-index:60; display:flex; align-items:flex-end;
+  justify-content:center; background:rgba(10,14,17,.5); padding:0}
+.sheet-in{background:var(--paper); border-top:3px solid var(--ink); width:100%;
+  max-width:640px; max-height:92vh; overflow:auto; padding:22px 24px 28px}
+@media (min-width:640px){ .sheet{align-items:center; padding:24px}
+  .sheet-in{border:1px solid var(--line); border-top:3px solid var(--ink)} }
+.sheet-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px}
+.sheet-head h3{font-size:23px}
+.sheet-head p{margin:4px 0 0; font-size:15px; color:var(--mut); font-family:'Barlow Condensed',sans-serif}
+.scale{display:flex; gap:5px; flex-wrap:wrap}
+.scale button{flex:1 1 auto; min-width:38px; padding:8px 4px; font-size:16px; text-align:center}
+.scale button[aria-pressed=true]{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.scalenote{font-size:14px; color:var(--mut); font-family:'Barlow Condensed',sans-serif; margin-top:5px}
+.splits{font-family:'Barlow Condensed',sans-serif; font-size:15.5px; margin-top:6px}
+.splits div{display:grid; grid-template-columns:44px 1fr 68px 58px 58px; gap:8px;
+  padding:4px 0; border-bottom:1px dotted var(--line)}
+.splits .hd{color:var(--mut); font-size:12.5px; text-transform:uppercase; letter-spacing:.1em}
+.bar{background:var(--run); height:8px; align-self:center; opacity:.75}
+.lifts{width:100%; margin-top:8px}
+.lifts input{padding:6px 8px; font-size:15px}
+.lifts td{border:0; padding:3px 4px 3px 0; white-space:normal}
+.empty{color:var(--mut); font-style:italic; padding:18px 0}
+@media (max-width:720px){
+  body{font-size:16px}
+  .day{grid-template-columns:60px 1fr; gap:6px 10px}
+  .day-act{grid-column:2; font-size:15px}
+  .day-fb{grid-column:2; justify-content:flex-start}
+  .slot{grid-template-columns:4px 1fr}
+  .slot-side{grid-column:2; padding:0 20px 14px 4px; align-items:flex-start}
+  .stat{border-right:0; border-bottom:1px solid var(--line2)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="shell">
+  <header class="masthead">
+    <div class="mh-left">
+      <p class="eyebrow">Training ledger</p>
+      <h1>Volume Ledger</h1>
+      <p class="goal" id="goalLine">Loading your plan&hellip;</p>
+    </div>
+    <div class="mh-right">
+      <div class="phasechip" id="phaseChip"><s>Plan</s><b>&mdash;</b></div>
+      <div class="weekmeter" id="weekMeter"></div>
+      <div class="syncline" id="syncLine">Strava: <b>not connected yet</b></div>
+    </div>
+  </header>
+
+  <nav class="jump">
+    <a href="#today">Today</a><a href="#week">Week</a><a href="#volume">Volume</a>
+    <a href="#coach">Coach</a><a href="#log">Log</a><a href="#plan">Plan</a><a href="#setup">Setup</a>
+  </nav>
+
+  <section id="today">
+    <div class="shead"><h2>Today</h2><span class="note" id="todayNote"></span></div>
+    <div class="today" id="todayCard"><div class="rest">Loading&hellip;</div></div>
+    <div class="btnrow" id="todayActions" style="margin-top:14px"></div>
+  </section>
+
+  <section id="week">
+    <div class="shead"><h2>This week</h2><span class="note" id="weekNote"></span></div>
+    <div class="wk" id="weekList"></div>
+    <div class="btnrow" id="weekActions" style="margin-top:16px"></div>
+  </section>
+
+  <section id="volume">
+    <div class="shead"><h2>Volume</h2><span class="note" id="volNote"></span></div>
+    <div class="chartwrap" id="chart"></div>
+    <p class="legend">
+      <span><i style="background:var(--run)"></i>run, actual</span>
+      <span><i style="border:1px solid var(--run)"></i>run, planned</span>
+      <span><i style="background:var(--bike)"></i>bike hours</span>
+      <span><i style="background:var(--swim)"></i>swim sessions</span>
+      <span id="targetLeg"></span>
+    </p>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section id="coach">
+    <div class="shead"><h2>Coach</h2><span class="note" id="coachNote2"></span></div>
+    <div class="coach" id="coachCard"></div>
+    <div class="digest">
+      <label for="digestBox" id="digestLabel">Monday digest &mdash; how did last week feel?</label>
+      <textarea id="digestBox" placeholder="Sleep, legs, knee, motivation, life load. What went well, what felt off, anything you cut or added, and how you want the coming week to go."></textarea>
+      <div class="btnrow" style="margin-top:11px" id="digestActions"></div>
+      <div class="thinking" id="coachStatus" hidden></div>
+      <div class="stream" id="coachStream" hidden></div>
+    </div>
+  </section>
+
+  <section id="log">
+    <div class="shead"><h2>Log</h2><span class="note" id="logNote"></span></div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Date</th><th>Sport</th><th class="r">Dist</th><th class="r">Time</th>
+        <th class="r">Pace</th><th class="r">HR</th><th class="r">Elev</th>
+        <th class="r">RPE</th><th>Feel</th><th></th>
+      </tr></thead>
+      <tbody id="logBody"></tbody>
+    </table></div>
+    <div class="btnrow" style="margin-top:14px" id="logActions"></div>
+  </section>
+
+  <section id="plan">
+    <div class="shead"><h2>The plan</h2><span class="note" id="planNote"></span></div>
+    <p class="coachtext" id="planRationale" style="margin-bottom:20px"></p>
+    <div class="phases" id="phaseList"></div>
+    <div class="btnrow" style="margin-top:18px" id="planActions"></div>
+  </section>
+
+  <section id="setup">
+    <div class="shead"><h2>Setup</h2></div>
+    <div class="grid2">
+      <div>
+        <h3 style="font-size:19px; margin-bottom:9px">Strava sync</h3>
+        <p class="help">The sync runs on your machine, not in this page &mdash; a browser page
+        can't reach Strava's API. Pull, then import the file it writes.</p>
+        <ol class="steps">
+          <li>One time: <code>python sync/strava_sync.py auth</code></li>
+          <li>Each sync: <code>python sync/strava_sync.py pull</code></li>
+          <li>Import <code>data/import.json</code> below.</li>
+        </ol>
+        <div class="filerow">
+          <input type="file" id="importFile" accept="application/json,.json">
+          <button id="importBtn" disabled>Import</button>
+        </div>
+        <div class="thinking" id="importStatus" style="margin-top:9px"></div>
+      </div>
+      <div>
+        <h3 style="font-size:19px; margin-bottom:9px">Goal</h3>
+        <p class="help">This is what the coach plans toward. Change it and rebuild the plan.</p>
+        <div class="field"><label for="goalText">Goal</label>
+          <textarea id="goalText" style="min-height:74px"></textarea></div>
+        <div class="field"><label for="goalMpw">Target run miles per week</label>
+          <input type="number" id="goalMpw" min="10" max="140" step="1"></div>
+        <div class="field"><label for="goalDate">Target date (optional)</label>
+          <input type="date" id="goalDate"></div>
+        <div class="field"><label for="goalKeep">Keep alongside running</label>
+          <input type="text" id="goalKeep" placeholder="2 bike sessions, 1-2 swims, 2 lifts"></div>
+        <div class="field"><label for="goalLimits">Hard limits and injury rules</label>
+          <textarea id="goalLimits" style="min-height:74px"></textarea></div>
+        <div class="btnrow"><button id="saveGoal">Save goal</button>
+          <span class="thinking" id="goalStatus"></span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-in" id="sheetIn"></div></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   * dates
+   * ------------------------------------------------------------------ */
+  var DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  function ymd(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function parseYmd(s) {
+    var p = String(s || "").split("-");
+    return new Date(+p[0], (+p[1] || 1) - 1, +p[2] || 1);
+  }
+  function isoWeek(d) {
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    var year = t.getUTCFullYear();
+    var jan1 = Date.UTC(year, 0, 1);
+    var week = Math.ceil(((t.getTime() - jan1) / 86400000 + 1) / 7);
+    return year + "-W" + pad(week);
+  }
+  function mondayOf(weekKey) {
+    var p = String(weekKey).split("-W");
+    var y = +p[0], w = +p[1];
+    var jan4 = new Date(y, 0, 4);
+    var shift = (jan4.getDay() || 7) - 1;
+    return new Date(y, 0, 4 - shift + (w - 1) * 7);
+  }
+  function weekAdd(weekKey, n) {
+    var m = mondayOf(weekKey);
+    m.setDate(m.getDate() + n * 7);
+    return isoWeek(m);
+  }
+  function weekLabel(weekKey) {
+    var m = mondayOf(weekKey);
+    return MON[m.getMonth()] + " " + m.getDate();
+  }
+  function daysBetween(a, b) {
+    return Math.round((parseYmd(b) - parseYmd(a)) / 86400000);
+  }
+
+  var TODAY = ymd(new Date());
+  var THIS_WEEK = isoWeek(new Date());
+
+  /* ------------------------------------------------------------------ *
+   * formatting
+   * ------------------------------------------------------------------ */
+  var SPORTS = { run: "Run", bike: "Bike", swim: "Swim", lift: "Lift",
+    strength: "Strength", mobility: "Mobility", walk: "Walk", hike: "Hike",
+    cross: "Cross", other: "Other" };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function n1(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+  function n0(x) { return String(Math.round(x)); }
+  function mmss(sec) {
+    if (!sec || !isFinite(sec)) return "—";
+    var s = Math.round(sec);
+    return Math.floor(s / 60) + ":" + pad(s % 60);
+  }
+  function hm(min) {
+    if (!min) return "—";
+    var h = Math.floor(min / 60), m = Math.round(min % 60);
+    return h ? h + "h" + (m ? pad(m) : "") : m + "m";
+  }
+  function comma(x) { return Math.round(x).toLocaleString("en-US"); }
+  var FEEL = { 1: "rough", 2: "flat", 3: "fine", 4: "good", 5: "great" };
+
+  /* ------------------------------------------------------------------ *
+   * state
+   * ------------------------------------------------------------------ */
+  var state = {
+    db: null, sample: null,
+    dbResolved: false, sampleResolved: false, loaded: false,
+    profile: null, plan: null,
+    weeks: {}, sessions: [], feedback: {}, digests: {}, sync: null,
+    busy: false
+  };
+  var $ = function (id) { return document.getElementById(id); };
+
+  var DEFAULT_PROFILE = {
+    goal: "Build running volume to 75 miles a week and hold it, keeping some bike and swim in every week.",
+    targetMpw: 75,
+    targetDate: "",
+    keep: "2 bike sessions, 1-2 swims, 2 lifts",
+    limits: "Monday off running. Stop if knee pain changes gait, rises during a run, swells the next morning, or passes 3/10."
+  };
+  function profile() { return state.profile || DEFAULT_PROFILE; }
+
+  /* ------------------------------------------------------------------ *
+   * derived
+   * ------------------------------------------------------------------ */
+  function sessionsOn(date) {
+    return state.sessions.filter(function (s) { return s.date === date; });
+  }
+  function rollup(weekKey) {
+    var mon = mondayOf(weekKey), from = ymd(mon);
+    var to = new Date(mon); to.setDate(to.getDate() + 6); to = ymd(to);
+    var r = { runMi: 0, runs: 0, longest: 0, elevFt: 0, bikeMin: 0, bikes: 0,
+      swimYd: 0, swims: 0, lifts: 0, liftMin: 0, hrSum: 0, hrN: 0, sessions: [] };
+    state.sessions.forEach(function (s) {
+      if (s.date < from || s.date > to) return;
+      r.sessions.push(s);
+      if (s.sport === "run") {
+        r.runMi += s.miles || 0; r.runs++;
+        r.elevFt += s.elevFt || 0;
+        if ((s.miles || 0) > r.longest) r.longest = s.miles || 0;
+        if (s.hrAvg) { r.hrSum += s.hrAvg; r.hrN++; }
+      } else if (s.sport === "bike") { r.bikeMin += s.movingMin || 0; r.bikes++; }
+      else if (s.sport === "swim") { r.swimYd += s.yards || 0; r.swims++; }
+      else if (s.sport === "lift" || s.sport === "strength") { r.lifts++; r.liftMin += s.movingMin || 0; }
+    });
+    r.hrAvg = r.hrN ? r.hrSum / r.hrN : null;
+    return r;
+  }
+  function targetFor(weekKey) {
+    var w = state.weeks[weekKey];
+    if (w && w.targets && w.targets.runMiles != null) return w.targets;
+    var plan = state.plan;
+    if (plan && plan.weekTargets) {
+      for (var i = 0; i < plan.weekTargets.length; i++) {
+        if (plan.weekTargets[i].week === weekKey) {
+          var t = plan.weekTargets[i];
+          return { runMiles: t.runMiles, bikeHours: t.bikeHours,
+            swimSessions: t.swimSessions, strengthSessions: t.strengthSessions, deload: t.deload };
+        }
+      }
+    }
+    return null;
+  }
+  function phaseFor(weekKey) {
+    var plan = state.plan;
+    if (!plan || !plan.phases) return null;
+    var idx = null;
+    if (plan.weekTargets) {
+      plan.weekTargets.forEach(function (t) { if (t.week === weekKey) idx = t.index; });
+    }
+    for (var i = 0; i < plan.phases.length; i++) {
+      var p = plan.phases[i];
+      if (idx != null && p.weekFrom <= idx && idx <= p.weekTo) return p;
+    }
+    return null;
+  }
+  function needsFeedback() {
+    var cut = ymd(new Date(Date.now() - 8 * 86400000));
+    return state.sessions.filter(function (s) {
+      return s.date >= cut && s.date <= TODAY && !state.feedback[s.id] &&
+        ["run", "bike", "swim", "lift", "strength"].indexOf(s.sport) >= 0;
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: masthead
+   * ------------------------------------------------------------------ */
+  function renderMast() {
+    var p = profile();
+    $("goalLine").textContent = p.goal || DEFAULT_PROFILE.goal;
+
+    var ph = phaseFor(THIS_WEEK);
+    var t = targetFor(THIS_WEEK);
+    var wtIdx = null;
+    if (state.plan && state.plan.weekTargets) {
+      state.plan.weekTargets.forEach(function (x) { if (x.week === THIS_WEEK) wtIdx = x.index; });
+    }
+    $("phaseChip").innerHTML = ph
+      ? "<s>Phase " + esc(ph.n) + "</s><b>" + esc(ph.name) + "</b>" +
+        (wtIdx ? "<s>week " + wtIdx + "</s>" : "")
+      : "<s>Plan</s><b>" + (state.plan ? "no target this week" : "not built yet") + "</b>";
+
+    var r = rollup(THIS_WEEK);
+    var tgt = t && t.runMiles ? t.runMiles : 0;
+    var pct = tgt ? Math.min(100, (r.runMi / tgt) * 100) : 0;
+    var elapsed = Math.min(7, Math.max(0, daysBetween(ymd(mondayOf(THIS_WEEK)), TODAY) + 1));
+    $("weekMeter").innerHTML =
+      '<div class="wm-top"><span class="wm-big">' + n1(r.runMi) +
+      (tgt ? ' <small>/ ' + n0(tgt) + " mi</small>" : ' <small>mi</small>') +
+      '</span><span class="wm-lab">week to date</span></div>' +
+      '<div class="wm-track"><div class="wm-fill" style="width:' + pct.toFixed(1) + '%' +
+      (t && t.deload ? ";background:var(--warn)" : "") + '"></div>' +
+      (tgt ? '<div class="wm-tick" style="left:' + ((elapsed / 7) * 100).toFixed(1) + '%"></div>' : "") +
+      "</div>";
+
+    var sync = state.sync;
+    var el = $("syncLine");
+    if (sync && sync.newest) {
+      var age = daysBetween(sync.newest, TODAY);
+      el.className = "syncline" + (age > 3 ? " stale" : "");
+      el.innerHTML = "Strava: <b>" + esc(sync.sessions || 0) + " sessions, newest " +
+        esc(sync.newest) + "</b>" + (age > 3 ? " — run a pull" : "");
+    } else {
+      el.className = "syncline stale";
+      el.innerHTML = 'Strava: <b>not imported yet</b> — <a href="#setup">set it up</a>';
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: today
+   * ------------------------------------------------------------------ */
+  function actualLine(s) {
+    var bits = [];
+    if (s.miles) bits.push("<i>dist</i>" + n1(s.miles) + " mi");
+    if (s.movingMin) bits.push("<i>time</i>" + hm(s.movingMin));
+    if (s.paceSecPerMi) bits.push("<i>pace</i>" + mmss(s.paceSecPerMi) + "/mi");
+    if (s.speedMph) bits.push("<i>speed</i>" + n1(s.speedMph) + " mph");
+    if (s.per100yd) bits.push("<i>pace</i>" + mmss(s.per100yd) + "/100y");
+    if (s.yards) bits.push("<i>swim</i>" + comma(s.yards) + " yd");
+    if (s.hrAvg) bits.push("<i>hr</i>" + n0(s.hrAvg) + (s.hrMax ? " / " + n0(s.hrMax) : ""));
+    if (s.elevFt) bits.push("<i>elev</i>" + comma(s.elevFt) + " ft");
+    if (s.avgWatts) bits.push("<i>watts</i>" + n0(s.avgWatts));
+    var fb = state.feedback[s.id];
+    if (fb) {
+      if (fb.rpe) bits.push("<i>rpe</i>" + fb.rpe);
+      if (fb.feel) bits.push("<i>felt</i>" + (FEEL[fb.feel] || fb.feel));
+      if (fb.pain) bits.push("<i>pain</i>" + fb.pain + "/10");
+    }
+    return bits.join("");
+  }
+
+  function renderToday() {
+    var wk = state.weeks[THIS_WEEK];
+    var idx = daysBetween(ymd(mondayOf(THIS_WEEK)), TODAY);
+    var day = wk && wk.days ? wk.days[idx] : null;
+    var planned = (day && day.sessions) || [];
+    var actual = sessionsOn(TODAY);
+    var d = new Date();
+    var head =
+      '<div class="today-head"><span class="today-date">' + DOW[idx < 0 ? 0 : idx] +
+      ", " + MON[d.getMonth()] + " " + d.getDate() +
+      "<span>" + esc(THIS_WEEK) + "</span></span>" +
+      '<span class="today-tag">' + (planned.length ? "prescribed" : "no session prescribed") +
+      "</span></div>";
+
+    var rows = "";
+    planned.forEach(function (ps, i) {
+      var match = actual.filter(function (a) { return sameSport(a.sport, ps.sport); });
+      var done = match.length > 0;
+      rows +=
+        '<div class="slot ' + esc(ps.sport) + '"><div class="slot-rule"></div>' +
+        '<div class="slot-main">' +
+        '<div class="slot-sport">' + esc(SPORTS[ps.sport] || ps.sport) +
+        (ps.intensity ? " · " + esc(ps.intensity) : "") + "</div>" +
+        '<div class="slot-title">' + esc(ps.title || "—") + "</div>" +
+        (ps.detail ? '<p class="slot-detail">' + esc(ps.detail) + "</p>" : "") +
+        (done ? '<div class="slot-actual">' + actualLine(match[0]) + "</div>" : "") +
+        '</div><div class="slot-side">' +
+        '<span class="chip ' + (done ? "done" : ps.optional ? "opt" : "") + '">' +
+        (done ? "done" : ps.optional ? "optional" : "planned") + "</span>" +
+        (done
+          ? '<button data-fb="' + esc(match[0].id) + '">' +
+            (state.feedback[match[0].id] ? "Edit note" : "How did it feel?") + "</button>"
+          : '<button data-log="' + esc(ps.sport) + '">Log it</button>') +
+        "</div></div>";
+    });
+
+    actual.forEach(function (a) {
+      var covered = planned.some(function (ps) { return sameSport(a.sport, ps.sport); });
+      if (covered) return;
+      rows +=
+        '<div class="slot ' + esc(a.sport) + '"><div class="slot-rule"></div>' +
+        '<div class="slot-main"><div class="slot-sport">' + esc(SPORTS[a.sport] || a.sport) +
+        " · not on the plan</div>" +
+        '<div class="slot-title">' + esc(a.name || SPORTS[a.sport] || a.sport) + "</div>" +
+        '<div class="slot-actual">' + actualLine(a) + "</div></div>" +
+        '<div class="slot-side"><span class="chip done">extra</span>' +
+        '<button data-fb="' + esc(a.id) + '">' +
+        (state.feedback[a.id] ? "Edit note" : "How did it feel?") + "</button></div></div>";
+    });
+
+    if (!rows) {
+      rows = '<div class="rest">' +
+        (wk ? "Rest day — nothing prescribed. Adaptation happens on the day you don't run."
+            : "No week planned yet. Ask the coach for one below.") + "</div>";
+    }
+    $("todayCard").innerHTML = head + '<div class="slots">' + rows + "</div>";
+
+    var nf = needsFeedback();
+    $("todayNote").textContent = nf.length
+      ? nf.length + (nf.length === 1 ? " session needs a note" : " sessions need notes")
+      : "";
+
+    var acts = [];
+    if (nf.length) acts.push('<button class="solid" id="fbNext">Add notes (' + nf.length + ")</button>");
+    acts.push('<button id="logManual">Log a session</button>');
+    $("todayActions").innerHTML = acts.join("");
+  }
+
+  function sameSport(a, b) {
+    if (a === b) return true;
+    var g = { lift: "strength", strength: "strength", mobility: "strength" };
+    return (g[a] || a) === (g[b] || b);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: week
+   * ------------------------------------------------------------------ */
+  function renderWeek() {
+    var wk = state.weeks[THIS_WEEK];
+    var mon = mondayOf(THIS_WEEK);
+    var t = targetFor(THIS_WEEK);
+    var r = rollup(THIS_WEEK);
+
+    var note = [];
+    if (t && t.runMiles) note.push(n1(r.runMi) + " of " + n0(t.runMiles) + " mi");
+    if (t && t.deload) note.push("deload week");
+    if (r.bikes) note.push(r.bikes + " bike · " + hm(r.bikeMin));
+    if (r.swims) note.push(r.swims + " swim · " + comma(r.swimYd) + " yd");
+    if (r.lifts) note.push(r.lifts + " lift");
+    $("weekNote").textContent = note.join("   ·   ");
+
+    var html = "";
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(mon); d.setDate(d.getDate() + i);
+      var date = ymd(d);
+      var day = wk && wk.days ? wk.days[i] : null;
+      var planned = (day && day.sessions) || [];
+      var acts = sessionsOn(date);
+      var isToday = date === TODAY;
+      var past = date < TODAY;
+
+      var plan = planned.length
+        ? planned.map(function (ps) {
+            return '<span class="pl ' + esc(ps.sport) + '"><s></s>' + esc(ps.title || SPORTS[ps.sport]) +
+              (ps.optional ? " <em>opt</em>" : "") + "</span>";
+          }).join("")
+        : '<span class="pl"><em>' + (wk ? "off" : "—") + "</em></span>";
+
+      var actHtml = acts.length
+        ? acts.map(function (s) {
+            var v = s.sport === "run" ? n1(s.miles) + " mi " + mmss(s.paceSecPerMi)
+              : s.sport === "bike" ? hm(s.movingMin) + (s.miles ? " · " + n0(s.miles) + " mi" : "")
+              : s.sport === "swim" ? comma(s.yards || 0) + " yd"
+              : hm(s.movingMin);
+            return '<span class="sport ' + esc(s.sport) + '"><s></s>' + esc(v) + "</span>";
+          }).join("")
+        : past ? '<span class="dash">nothing recorded</span>' : "";
+
+      var fb = "";
+      acts.forEach(function (s) {
+        var f = state.feedback[s.id];
+        fb += '<span class="fbdot ' + (f ? (f.pain ? "pain" : "has") : "") + '" title="' +
+          (f ? "rpe " + (f.rpe || "?") + ", felt " + (FEEL[f.feel] || "?") +
+               (f.pain ? ", pain " + f.pain + "/10" : "") : "no note yet") + '"></span>';
+      });
+
+      html +=
+        '<div class="day' + (isToday ? " is-today" : "") + (past ? " past" : "") + '">' +
+        '<div class="day-name"><b>' + DOW[i] + "</b><span>" + MON[d.getMonth()] + " " + d.getDate() + "</span></div>" +
+        '<div class="day-plan">' + plan + "</div>" +
+        '<div class="day-act">' + actHtml + "</div>" +
+        '<div class="day-fb">' + fb + "</div></div>";
+    }
+    $("weekList").innerHTML = html;
+
+    var buttons = [];
+    if (!wk || !wk.days) buttons.push('<button class="solid" data-plan="' + THIS_WEEK + '">Plan this week</button>');
+    buttons.push('<button data-plan="' + weekAdd(THIS_WEEK, 1) + '">' +
+      (state.weeks[weekAdd(THIS_WEEK, 1)] ? "Re-plan next week" : "Plan next week") + "</button>");
+    if (wk && wk.generatedAt) {
+      buttons.push('<span class="thinking">planned ' + esc(String(wk.generatedAt).slice(0, 10)) +
+        (wk.source === "seed" ? " from your plan document" : " by the coach") + "</span>");
+    }
+    $("weekActions").innerHTML = buttons.join("");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: chart
+   * ------------------------------------------------------------------ */
+  function renderChart() {
+    var back = 10, fwd = 4, keys = [];
+    for (var i = -back; i <= fwd; i++) keys.push(weekAdd(THIS_WEEK, i));
+
+    var rows = keys.map(function (k) {
+      var r = rollup(k), t = targetFor(k);
+      return { k: k, actual: r.runMi, runs: r.runs, bikeHr: r.bikeMin / 60, swims: r.swims,
+        target: t && t.runMiles ? t.runMiles : null, deload: !!(t && t.deload),
+        future: k > THIS_WEEK, now: k === THIS_WEEK };
+    });
+
+    var goal = +(profile().targetMpw || 0);
+    var max = Math.max(goal || 0, 10);
+    rows.forEach(function (r) { max = Math.max(max, r.actual, r.target || 0); });
+    max = Math.ceil((max * 1.1) / 10) * 10;
+
+    var W = 920, L = 44, R = 14, T = 24, AX = 208;
+    var band = (W - L - R) / rows.length;
+    var y = function (v) { return AX - (v / max) * (AX - T); };
+    var s = [];
+
+    for (var g = 10; g <= max; g += 10) {
+      s.push('<line x1="' + L + '" y1="' + y(g).toFixed(1) + '" x2="' + (W - R) +
+        '" y2="' + y(g).toFixed(1) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>');
+      s.push('<text x="' + (L - 8) + '" y="' + (y(g) + 4).toFixed(1) +
+        '" text-anchor="end" font-family="Barlow Condensed,sans-serif" font-size="13" fill="var(--mut)">' + g + "</text>");
+    }
+    if (goal) {
+      s.push('<line x1="' + L + '" y1="' + y(goal).toFixed(1) + '" x2="' + (W - R) + '" y2="' +
+        y(goal).toFixed(1) + '" stroke="var(--run)" stroke-width="1.5" stroke-dasharray="6 4"/>');
+    }
+
+    var bw = Math.min(22, band * 0.34);
+    rows.forEach(function (r, i) {
+      var cx = L + band * i + band / 2;
+      if (r.now) {
+        s.push('<rect x="' + (L + band * i).toFixed(1) + '" y="' + T + '" width="' + band.toFixed(1) +
+          '" height="' + (AX - T) + '" fill="var(--ghost)"/>');
+      }
+      if (r.target) {
+        var th = Math.max(1, AX - y(r.target));
+        s.push('<rect x="' + (cx - bw - 2).toFixed(1) + '" y="' + y(r.target).toFixed(1) +
+          '" width="' + bw.toFixed(1) + '" height="' + th.toFixed(1) +
+          '" fill="none" stroke="var(--run)" stroke-width="1"' +
+          (r.deload ? ' stroke-dasharray="3 3"' : "") + '><title>' + r.k + " planned " +
+          n0(r.target) + " mi" + (r.deload ? " (deload)" : "") + "</title></rect>");
+      }
+      if (r.actual > 0.05) {
+        var ah = Math.max(1, AX - y(r.actual));
+        s.push('<rect x="' + (cx + 2).toFixed(1) + '" y="' + y(r.actual).toFixed(1) +
+          '" width="' + bw.toFixed(1) + '" height="' + ah.toFixed(1) + '" fill="var(--run)"><title>' +
+          r.k + " actual " + n1(r.actual) + " mi over " + r.runs + " runs</title></rect>");
+      }
+      s.push('<text x="' + cx.toFixed(1) + '" y="' + (AX + 17) +
+        '" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-size="12.5" fill="' +
+        (r.now ? "var(--ink)" : "var(--mut)") + '">' + weekLabel(r.k) + "</text>");
+    });
+
+    // support strip: bike hours and swim sessions
+    var maxBike = 1;
+    rows.forEach(function (r) { maxBike = Math.max(maxBike, r.bikeHr); });
+    var SB = AX + 30, SS = AX + 48;
+    s.push('<text x="' + (L - 8) + '" y="' + (SB + 9) + '" text-anchor="end" font-family="Barlow Condensed,sans-serif" font-size="12" fill="var(--mut)">bike</text>');
+    s.push('<text x="' + (L - 8) + '" y="' + (SS + 9) + '" text-anchor="end" font-family="Barlow Condensed,sans-serif" font-size="12" fill="var(--mut)">swim</text>');
+    rows.forEach(function (r, i) {
+      var x0 = L + band * i + band / 2 - bw;
+      var w = bw * 2;
+      if (r.bikeHr > 0.02) {
+        var h = Math.max(2, (r.bikeHr / maxBike) * 12);
+        s.push('<rect x="' + x0.toFixed(1) + '" y="' + (SB + 12 - h).toFixed(1) + '" width="' + w.toFixed(1) +
+          '" height="' + h.toFixed(1) + '" fill="var(--bike)"><title>' + r.k + " bike " + n1(r.bikeHr) + " h</title></rect>");
+      } else if (!r.future) {
+        s.push('<line x1="' + x0.toFixed(1) + '" y1="' + (SB + 12) + '" x2="' + (x0 + w).toFixed(1) +
+          '" y2="' + (SB + 12) + '" stroke="var(--line)" stroke-width="1"/>');
+      }
+      for (var k = 0; k < r.swims; k++) {
+        s.push('<rect x="' + (x0 + k * 8).toFixed(1) + '" y="' + (SS + 4) + '" width="6" height="6" fill="var(--swim)"><title>' +
+          r.k + " " + r.swims + " swims</title></rect>");
+      }
+      if (!r.swims && !r.future) {
+        s.push('<line x1="' + x0.toFixed(1) + '" y1="' + (SS + 10) + '" x2="' + (x0 + w).toFixed(1) +
+          '" y2="' + (SS + 10) + '" stroke="var(--line)" stroke-width="1"/>');
+      }
+    });
+    s.push('<line x1="' + L + '" y1="' + AX + '" x2="' + (W - R) + '" y2="' + AX + '" stroke="var(--mut)" stroke-width="1"/>');
+    s.push('<text x="' + (L - 8) + '" y="' + (T - 8) + '" text-anchor="end" font-family="Barlow Condensed,sans-serif" font-size="12" fill="var(--mut)">mi</text>');
+
+    $("chart").innerHTML = '<svg viewBox="0 0 ' + W + ' ' + (SS + 22) + '" role="img" aria-label="Weekly running miles, planned against actual, for the last ten weeks and the next four.">' + s.join("") + "</svg>";
+    $("targetLeg").innerHTML = goal ? '<i style="border-top:2px dashed var(--run); height:0; align-self:center"></i>' + n0(goal) + " mi goal" : "";
+    $("volNote").textContent = "last " + back + " weeks and the next " + fwd;
+
+    // stats from real sessions
+    var d28 = ymd(new Date(Date.now() - 28 * 86400000));
+    var d7 = ymd(new Date(Date.now() - 7 * 86400000));
+    var mi28 = 0, mi7 = 0, long4 = 0, elev28 = 0, hrS = 0, hrN = 0;
+    state.sessions.forEach(function (x) {
+      if (x.sport !== "run" || x.date < d28) return;
+      mi28 += x.miles || 0; elev28 += x.elevFt || 0;
+      if (x.date >= d7) mi7 += x.miles || 0;
+      if ((x.miles || 0) > long4) long4 = x.miles || 0;
+      if (x.hrAvg) { hrS += x.hrAvg; hrN++; }
+    });
+    var stats = [
+      ["7-day run", n1(mi7), "mi"],
+      ["4-week average", n1(mi28 / 4), "mi/wk"],
+      ["longest run, 4 wk", n1(long4), "mi"],
+      ["4-week climb", comma(elev28), "ft"],
+      ["avg run HR", hrN ? n0(hrS / hrN) : "—", hrN ? "bpm" : ""]
+    ];
+    $("stats").innerHTML = stats.map(function (x) {
+      return '<div class="stat"><b>' + x[1] + ' <i>' + x[2] + "</i></b><span>" + x[0] + "</span></div>";
+    }).join("");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: coach
+   * ------------------------------------------------------------------ */
+  function renderCoach() {
+    var wk = state.weeks[THIS_WEEK] || {};
+    var dg = state.digests[THIS_WEEK];
+    var review = dg && dg.review;
+    var html = "";
+
+    if (review || wk.coachNote) {
+      var verdict = (review && review.verdict) || wk.verdict;
+      html += '<div class="verdict"><b>' +
+        esc(review ? "Week review" : "This week") + "</b>" +
+        (verdict ? '<span class="chip ' +
+          (/back|hold|ease|down/i.test(verdict) ? "miss" : "done") + '">' + esc(verdict) + "</span>" : "") +
+        "</div>";
+      var body = (review && review.summary) || wk.coachNote || "";
+      html += '<div class="coachtext">' + body.split(/\n\n+/).map(function (p) {
+        return "<p>" + esc(p) + "</p>";
+      }).join("") + "</div>";
+      var adj = (review && review.adjustments) || wk.adjustments || [];
+      if (adj.length) {
+        html += '<ul class="adj">' + adj.map(function (a) { return "<li>" + esc(a) + "</li>"; }).join("") + "</ul>";
+      }
+      var flags = (review && review.flags) || [];
+      if (flags.length) {
+        html += '<div class="flagbox"><b>Watch</b><ul>' +
+          flags.map(function (f) { return "<li>" + esc(f) + "</li>"; }).join("") + "</ul></div>";
+      }
+    } else {
+      html = '<div class="coachtext"><p><em>No coaching note for this week yet.</em> Write the digest below and send it, ' +
+        "or ask for a week plan straight away.</p></div>";
+    }
+    $("coachCard").innerHTML = html;
+
+    var isMonday = new Date().getDay() === 1;
+    $("coachNote2").textContent = isMonday ? "Monday — digest day" : "";
+    $("digestLabel").textContent = "Digest for " + THIS_WEEK + " — how did last week (" +
+      weekAdd(THIS_WEEK, -1) + ") feel?";
+    if (dg && dg.text && !$("digestBox").value) $("digestBox").value = dg.text;
+
+    var btns;
+    if (!state.sampleResolved) {
+      btns = ['<button id="saveDigest">Save draft</button>',
+        '<span class="thinking">Connecting to Claude&hellip;</span>'];
+    } else if (!state.sample) {
+      btns = ['<button id="saveDigest">Save draft</button>',
+        '<span class="thinking">Claude planning isn\'t available in this view.</span>'];
+    } else {
+      btns = ['<button class="solid" id="sendDigest">Send digest to Claude</button>',
+        '<button id="saveDigest">Save draft</button>'];
+    }
+    $("digestActions").innerHTML = btns.join("");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: log
+   * ------------------------------------------------------------------ */
+  function renderLog() {
+    var rows = state.sessions.slice(0, 40);
+    if (!rows.length) {
+      $("logBody").innerHTML = '<tr><td colspan="10" class="name"><span class="empty">' +
+        (state.loaded
+          ? "No sessions yet. Import a Strava pull in Setup, or log one by hand."
+          : "Loading your sessions&hellip;") + "</span></td></tr>";
+    } else {
+      $("logBody").innerHTML = rows.map(function (s) {
+        var f = state.feedback[s.id] || {};
+        var dist = s.sport === "swim" ? (s.yards ? comma(s.yards) + " yd" : "—")
+          : s.miles ? n1(s.miles) + " mi" : "—";
+        var pace = s.paceSecPerMi ? mmss(s.paceSecPerMi) : s.per100yd ? mmss(s.per100yd)
+          : s.speedMph ? n1(s.speedMph) + " mph" : "—";
+        var d = parseYmd(s.date);
+        return "<tr>" +
+          "<td>" + MON[d.getMonth()] + " " + d.getDate() + "</td>" +
+          '<td><span class="sport ' + esc(s.sport) + '"><s></s>' + esc(SPORTS[s.sport] || s.sport) + "</span></td>" +
+          '<td class="r">' + dist + "</td>" +
+          '<td class="r">' + hm(s.movingMin) + "</td>" +
+          '<td class="r">' + pace + "</td>" +
+          '<td class="r">' + (s.hrAvg ? n0(s.hrAvg) : "—") + "</td>" +
+          '<td class="r">' + (s.elevFt ? comma(s.elevFt) : "—") + "</td>" +
+          '<td class="r">' + (f.rpe || "—") + "</td>" +
+          "<td>" + (f.feel ? esc(FEEL[f.feel] || f.feel) : "—") +
+          (f.pain ? ' <span class="chip pain">pain ' + f.pain + "</span>" : "") + "</td>" +
+          '<td class="r"><button class="link" data-open="' + esc(s.id) + '">' +
+          (f.loggedAt ? "note" : "add note") + "</button></td></tr>";
+      }).join("");
+    }
+    $("logNote").textContent = state.sessions.length
+      ? state.sessions.length + " sessions in the window" : "";
+    $("logActions").innerHTML = '<button id="logManual2">Log a session</button>' +
+      (state.sessions.length ? '<button id="exportLog">Export as JSON</button>' : "");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * render: plan
+   * ------------------------------------------------------------------ */
+  function renderPlan() {
+    var plan = state.plan;
+    $("planRationale").innerHTML = plan && plan.rationale
+      ? "<p>" + esc(plan.rationale) + "</p>"
+      : "<p><em>No macrocycle built yet. Import your Strava history, then let the coach build the phases from where you actually are.</em></p>";
+
+    if (!plan || !plan.phases) {
+      $("phaseList").innerHTML = "";
+    } else {
+      var cur = phaseFor(THIS_WEEK);
+      $("phaseList").innerHTML = plan.phases.map(function (p) {
+        var wt = (plan.weekTargets || []).filter(function (t) {
+          return t.index >= p.weekFrom && t.index <= p.weekTo;
+        });
+        var lo = null, hi = null;
+        wt.forEach(function (t) {
+          if (lo == null || t.runMiles < lo) lo = t.runMiles;
+          if (hi == null || t.runMiles > hi) hi = t.runMiles;
+        });
+        var first = wt.length ? weekLabel(wt[0].week) : null;
+        var last = wt.length ? weekLabel(wt[wt.length - 1].week) : null;
+        return '<div class="ph' + (cur && cur.n === p.n ? " now" : "") + '">' +
+          '<div class="ph-n">' + esc(p.n) + "</div><div><h3>" + esc(p.name) + "</h3>" +
+          '<div class="ph-meta"><span>weeks ' + esc(p.weekFrom) + "–" + esc(p.weekTo) + "</span>" +
+          (first ? "<s></s><span>" + first + " – " + last + "</span>" : "") +
+          (lo != null ? "<s></s><span>" + n0(lo) + "–" + n0(hi) + " mi/wk</span>" : "") +
+          (cur && cur.n === p.n ? '<s></s><span class="chip done">current</span>' : "") +
+          "</div><p>" + esc(p.job || "") + "</p></div></div>";
+      }).join("");
+    }
+
+    var wt = (plan && plan.weekTargets) || [];
+    var upcoming = wt.filter(function (t) { return t.week >= THIS_WEEK; }).slice(0, 16);
+    var det = "";
+    if (upcoming.length) {
+      det = "<details><summary>Week-by-week targets ahead (" + upcoming.length + ")</summary>" +
+        '<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Week</th><th>Starts</th>' +
+        '<th class="r">Run</th><th class="r">Bike</th><th class="r">Swim</th><th class="r">Lift</th><th></th>' +
+        "</tr></thead><tbody>" + upcoming.map(function (t) {
+          return "<tr><td>" + esc(t.week) + "</td><td>" + weekLabel(t.week) + "</td>" +
+            '<td class="r">' + n0(t.runMiles || 0) + " mi</td>" +
+            '<td class="r">' + (t.bikeHours ? n1(t.bikeHours) + " h" : "—") + "</td>" +
+            '<td class="r">' + (t.swimSessions || "—") + "</td>" +
+            '<td class="r">' + (t.strengthSessions || "—") + "</td>" +
+            "<td>" + (t.deload ? '<span class="chip deload">deload</span>' : "") + "</td></tr>";
+        }).join("") + "</tbody></table></div></details>";
+    }
+    $("planNote").textContent = plan && plan.generatedAt
+      ? "built " + String(plan.generatedAt).slice(0, 10) : "";
+    var acts = '<button class="solid" id="buildPlan">' +
+      (plan ? "Rebuild from my history" : "Build the plan") + "</button>";
+    $("planActions").innerHTML = acts;
+    var host = $("phaseList");
+    var old = document.getElementById("wtDetails");
+    if (old) old.remove();
+    if (det) {
+      var wrap = document.createElement("div");
+      wrap.id = "wtDetails";
+      wrap.innerHTML = det;
+      host.parentNode.insertBefore(wrap, $("planActions"));
+    }
+  }
+
+  function renderSetup() {
+    var p = profile();
+    if (document.activeElement && document.activeElement.closest &&
+        document.activeElement.closest("#setup")) return;
+    $("goalText").value = p.goal || "";
+    $("goalMpw").value = p.targetMpw || "";
+    $("goalDate").value = p.targetDate || "";
+    $("goalKeep").value = p.keep || "";
+    $("goalLimits").value = p.limits || "";
+  }
+
+  var pending = false;
+  function render() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () {
+      pending = false;
+      try {
+        renderMast(); renderToday(); renderWeek(); renderChart();
+        renderCoach(); renderLog(); renderPlan(); renderSetup();
+      } catch (e) {
+        console.error("render", e);
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * sheet (modal)
+   * ------------------------------------------------------------------ */
+  var sheetPrev = null;
+  // A fresh inner node each time, so per-sheet listeners never accumulate.
+  function openSheet(html, afterOpen) {
+    sheetPrev = document.activeElement;
+    var old = $("sheetIn");
+    if (old) old.remove();
+    var inner = document.createElement("div");
+    inner.className = "sheet-in";
+    inner.id = "sheetIn";
+    inner.innerHTML = html;
+    $("sheet").appendChild(inner);
+    $("sheet").hidden = false;
+    document.body.style.overflow = "hidden";
+    if (afterOpen) afterOpen();
+    var f = inner.querySelector("button, input, textarea, select");
+    if (f) f.focus();
+  }
+  function closeSheet() {
+    $("sheet").hidden = true;
+    var inner = $("sheetIn");
+    if (inner) inner.remove();
+    document.body.style.overflow = "";
+    if (sheetPrev && sheetPrev.focus) sheetPrev.focus();
+  }
+  $("sheet").addEventListener("click", function (e) {
+    if (e.target === $("sheet")) closeSheet();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("sheet").hidden) closeSheet();
+  });
+
+  /* ------------------------------------------------------------------ *
+   * feedback sheet
+   * ------------------------------------------------------------------ */
+  function feedbackSheet(sessionId) {
+    var s = state.sessions.filter(function (x) { return x.id === sessionId; })[0];
+    if (!s) return;
+    var f = state.feedback[sessionId] || {};
+    var d = parseYmd(s.date);
+
+    var scale = function (name, from, to, val, labels) {
+      var out = '<div class="field"><label>' + name.label + "</label><div class=\"scale\" data-scale=\"" + name.key + "\">";
+      for (var i = from; i <= to; i++) {
+        out += '<button type="button" data-val="' + i + '" aria-pressed="' + (val === i) + '">' +
+          (labels ? labels[i] : i) + "</button>";
+      }
+      return out + "</div>" + (name.note ? '<div class="scalenote">' + name.note + "</div>" : "") + "</div>";
+    };
+
+    var detail = "";
+    if (s.splits && s.splits.length > 1) {
+      var fastest = Math.min.apply(null, s.splits.map(function (x) { return x.paceSecPerMi || 9999; }));
+      var slowest = Math.max.apply(null, s.splits.map(function (x) { return x.paceSecPerMi || 0; }));
+      detail = '<div class="splits"><div class="hd"><span>mi</span><span>pace</span><span></span><span>hr</span><span>elev</span></div>' +
+        s.splits.map(function (sp) {
+          var w = sp.paceSecPerMi && slowest > fastest
+            ? 12 + 88 * (1 - (sp.paceSecPerMi - fastest) / (slowest - fastest)) : 60;
+          return "<div><span>" + esc(sp.mi) + "</span>" +
+            '<span><span class="bar" style="display:block;width:' + w.toFixed(0) + '%"></span></span>' +
+            "<span>" + mmss(sp.paceSecPerMi) + "</span>" +
+            "<span>" + (sp.hrAvg ? n0(sp.hrAvg) : "") + "</span>" +
+            "<span>" + (sp.elevFt ? n0(sp.elevFt) + "'" : "") + "</span></div>";
+        }).join("") + "</div>";
+    } else if (s.laps && s.laps.length > 1) {
+      detail = '<div class="splits"><div class="hd"><span>lap</span><span>dist</span><span>pace</span><span>hr</span><span>time</span></div>' +
+        s.laps.map(function (lp) {
+          return "<div><span>" + esc(lp.n) + "</span><span>" + (lp.miles ? n1(lp.miles) + " mi" : "") + "</span>" +
+            "<span>" + mmss(lp.paceSecPerMi) + "</span><span>" + (lp.hrAvg ? n0(lp.hrAvg) : "") + "</span>" +
+            "<span>" + hm(lp.minutes) + "</span></div>";
+        }).join("") + "</div>";
+    }
+
+    var isLift = s.sport === "lift" || s.sport === "strength";
+    var lifts = (s.lifts && s.lifts.length ? s.lifts : [{}, {}, {}]);
+    var liftRows = isLift ? '<div class="field"><label>Lifts &mdash; exercise, sets, reps, weight</label>' +
+      '<table class="lifts" id="liftTable"><tbody>' + lifts.concat([{}]).map(function (l) {
+        return '<tr><td><input type="text" data-l="ex" value="' + esc(l.ex || "") + '" placeholder="Trap bar deadlift"></td>' +
+          '<td style="width:58px"><input type="number" data-l="sets" value="' + esc(l.sets || "") + '" placeholder="3"></td>' +
+          '<td style="width:58px"><input type="number" data-l="reps" value="' + esc(l.reps || "") + '" placeholder="5"></td>' +
+          '<td style="width:78px"><input type="number" data-l="lb" value="' + esc(l.lb || "") + '" placeholder="lb"></td></tr>';
+      }).join("") + "</tbody></table></div>" : "";
+
+    openSheet(
+      '<div class="sheet-head"><div><h3>' + esc(s.name || SPORTS[s.sport] || s.sport) + "</h3>" +
+      "<p>" + DOW[(d.getDay() + 6) % 7] + " " + MON[d.getMonth()] + " " + d.getDate() +
+      "  ·  " + esc(SPORTS[s.sport] || s.sport) + "</p></div>" +
+      '<button type="button" data-close="1">Close</button></div>' +
+      (actualLine(s) ? '<div class="slot-actual" style="border-top:0; padding-top:0">' + actualLine(s) + "</div>" : "") +
+      detail +
+      '<div style="height:18px"></div>' +
+      scale({ key: "rpe", label: "Effort (RPE)", note: "1 walking, 5 steady, 7 working, 10 all out" }, 1, 10, f.rpe) +
+      scale({ key: "feel", label: "How the body felt" }, 1, 5, f.feel, { 1: "rough", 2: "flat", 3: "fine", 4: "good", 5: "great" }) +
+      scale({ key: "pain", label: "Knee / niggle pain", note: "0 none. Above 3 means stop and hold volume." }, 0, 10, f.pain) +
+      '<div class="field"><label for="fbSite">Where, if anywhere</label>' +
+      '<input type="text" id="fbSite" value="' + esc(f.painSite || "") + '" placeholder="left knee, medial"></div>' +
+      '<div class="field"><label for="fbNotes">Notes for the coach</label>' +
+      '<textarea id="fbNotes" placeholder="Terrain, sleep, fuel, how it changed through the run.">' +
+      esc(f.notes || "") + "</textarea></div>" +
+      liftRows +
+      '<div class="btnrow"><button class="solid" id="fbSave">Save note</button>' +
+      '<button type="button" data-close="1">Cancel</button>' +
+      '<span class="thinking" id="fbStatus"></span></div>',
+      function () {
+        var chosen = { rpe: f.rpe || null, feel: f.feel || null, pain: f.pain == null ? null : f.pain };
+        $("sheetIn").addEventListener("click", function (e) {
+          var b = e.target.closest("[data-val]");
+          if (b) {
+            var wrap = b.closest("[data-scale]");
+            var key = wrap.getAttribute("data-scale");
+            var v = +b.getAttribute("data-val");
+            chosen[key] = chosen[key] === v ? null : v;
+            wrap.querySelectorAll("button").forEach(function (x) {
+              x.setAttribute("aria-pressed", +x.getAttribute("data-val") === chosen[key]);
+            });
+          }
+          if (e.target.id === "fbSave") saveFeedback(s, chosen, isLift);
+        });
+      }
+    );
+  }
+
+  async function saveFeedback(s, chosen, isLift) {
+    if (!state.db) return;
+    var st = $("fbStatus");
+    st.textContent = "Saving…";
+    var doc = {
+      sessionId: s.id, date: s.date, sport: s.sport,
+      rpe: chosen.rpe, feel: chosen.feel, pain: chosen.pain,
+      painSite: ($("fbSite").value || "").trim(),
+      notes: ($("fbNotes").value || "").trim(),
+      loggedAt: new Date().toISOString()
+    };
+    Object.keys(doc).forEach(function (k) { if (doc[k] === null) delete doc[k]; });
+    try {
+      await state.db.doc("feedback/" + s.id).set(doc);
+      if (isLift) {
+        var lifts = [];
+        $("liftTable").querySelectorAll("tr").forEach(function (tr) {
+          var g = function (k) {
+            var el = tr.querySelector('[data-l="' + k + '"]');
+            return el ? el.value.trim() : "";
+          };
+          if (g("ex")) lifts.push({ ex: g("ex"), sets: +g("sets") || null, reps: +g("reps") || null, lb: +g("lb") || null });
+        });
+        if (lifts.length) await state.db.doc("sessions/" + s.id).update({ lifts: lifts });
+      }
+      closeSheet();
+    } catch (e) {
+      st.textContent = dbErr(e);
+      st.className = "thinking err";
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * manual session
+   * ------------------------------------------------------------------ */
+  function manualSheet(sport) {
+    openSheet(
+      '<div class="sheet-head"><div><h3>Log a session</h3>' +
+      "<p>For anything Strava didn't record</p></div>" +
+      '<button type="button" data-close="1">Close</button></div>' +
+      '<div class="field"><label for="mSport">Sport</label><select id="mSport">' +
+      ["run", "bike", "swim", "lift", "strength", "mobility", "cross", "other"].map(function (k) {
+        return '<option value="' + k + '"' + (k === sport ? " selected" : "") + ">" + SPORTS[k] + "</option>";
+      }).join("") + "</select></div>" +
+      '<div class="field"><label for="mDate">Date</label><input type="date" id="mDate" value="' + TODAY + '"></div>' +
+      '<div class="field"><label for="mName">What was it</label><input type="text" id="mName" placeholder="Easy 6 with strides"></div>' +
+      '<div class="grid2" style="gap:14px">' +
+      '<div class="field"><label for="mDist">Distance (miles, or yards for swim)</label><input type="number" id="mDist" step="0.01"></div>' +
+      '<div class="field"><label for="mMin">Moving time (minutes)</label><input type="number" id="mMin" step="1"></div>' +
+      '<div class="field"><label for="mElev">Elevation (ft)</label><input type="number" id="mElev" step="1"></div>' +
+      '<div class="field"><label for="mHr">Average HR</label><input type="number" id="mHr" step="1"></div>' +
+      "</div>" +
+      '<div class="btnrow"><button class="solid" id="mSave">Save session</button>' +
+      '<button type="button" data-close="1">Cancel</button>' +
+      '<span class="thinking" id="mStatus"></span></div>',
+      function () {
+        $("mSave").addEventListener("click", async function () {
+          if (!state.db) return;
+          var sp = $("mSport").value;
+          var dist = parseFloat($("mDist").value) || 0;
+          var min = parseFloat($("mMin").value) || 0;
+          var doc = {
+            id: "m" + Date.now(), source: "manual", sport: sp,
+            name: ($("mName").value || "").trim() || SPORTS[sp],
+            date: $("mDate").value || TODAY,
+            movingMin: min || null,
+            elevFt: parseFloat($("mElev").value) || null,
+            hrAvg: parseFloat($("mHr").value) || null
+          };
+          if (sp === "swim") { doc.yards = dist || null; if (dist && min) doc.per100yd = (min * 60) / (dist / 100); }
+          else if (dist) { doc.miles = dist; if (min) doc.paceSecPerMi = (min * 60) / dist; }
+          Object.keys(doc).forEach(function (k) { if (doc[k] === null) delete doc[k]; });
+          var st = $("mStatus");
+          st.textContent = "Saving…";
+          try {
+            await state.db.doc("sessions/" + doc.id).set(doc);
+            closeSheet();
+          } catch (e) { st.textContent = dbErr(e); st.className = "thinking err"; }
+        });
+      }
+    );
+  }
+
+  /* ------------------------------------------------------------------ *
+   * import
+   * ------------------------------------------------------------------ */
+  $("importFile").addEventListener("change", function () {
+    $("importBtn").disabled = !this.files || !this.files.length;
+    $("importStatus").textContent = "";
+  });
+  $("importBtn").addEventListener("click", async function () {
+    var file = $("importFile").files && $("importFile").files[0];
+    if (!file || !state.db) return;
+    var st = $("importStatus");
+    st.className = "thinking";
+    st.textContent = "Reading " + file.name + "…";
+    var blob;
+    try {
+      blob = JSON.parse(await file.text());
+    } catch (e) {
+      st.className = "thinking err";
+      st.textContent = "That file isn't valid JSON. Re-run the pull and try again.";
+      return;
+    }
+    if (!blob || blob.kind !== "training-log-import" || !Array.isArray(blob.sessions)) {
+      st.className = "thinking err";
+      st.textContent = "That isn't a training-log import file. Choose data/import.json from the sync.";
+      return;
+    }
+    var known = {};
+    state.sessions.forEach(function (s) { known[s.id] = s; });
+    var todo = blob.sessions.filter(function (s) {
+      var k = known[s.id];
+      return !k || k.movingMin !== s.movingMin || k.miles !== s.miles || (!k.splits && s.splits);
+    });
+    if (!todo.length) {
+      st.textContent = "Already up to date — " + blob.sessions.length + " sessions, nothing new.";
+      await saveSync(blob, 0);
+      return;
+    }
+    var done = 0, failed = 0;
+    for (var i = 0; i < todo.length; i += 4) {
+      var chunk = todo.slice(i, i + 4);
+      /* eslint-disable no-await-in-loop */
+      await Promise.all(chunk.map(async function (s) {
+        try { await state.db.doc("sessions/" + s.id).set(s); done++; }
+        catch (e) { failed++; console.error("import", s.id, e); }
+      }));
+      st.textContent = "Importing … " + done + " of " + todo.length;
+      if (failed > 6) break;
+    }
+    await saveSync(blob, done);
+    st.className = failed ? "thinking err" : "thinking";
+    st.textContent = done + " sessions imported" +
+      (failed ? ", " + failed + " failed — try again in a minute" : "") + ".";
+  });
+
+  async function saveSync(blob, imported) {
+    try {
+      await state.db.doc("meta/sync").set({
+        lastImport: new Date().toISOString(),
+        generatedAt: blob.generatedAt || null,
+        sessions: blob.sessions.length,
+        imported: imported,
+        newest: blob.sessions.length ? blob.sessions[0].date : null,
+        athlete: blob.athlete || null,
+        range: blob.range || null
+      });
+    } catch (e) { console.error("sync doc", e); }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * goal
+   * ------------------------------------------------------------------ */
+  $("saveGoal").addEventListener("click", async function () {
+    if (!state.db) return;
+    var st = $("goalStatus");
+    st.className = "thinking";
+    st.textContent = "Saving…";
+    try {
+      await state.db.doc("config/profile").set({
+        goal: $("goalText").value.trim(),
+        targetMpw: parseFloat($("goalMpw").value) || null,
+        targetDate: $("goalDate").value || "",
+        keep: $("goalKeep").value.trim(),
+        limits: $("goalLimits").value.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      st.textContent = "Saved. Rebuild the plan to apply it.";
+    } catch (e) { st.className = "thinking err"; st.textContent = dbErr(e); }
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Claude: context + prompts
+   * ------------------------------------------------------------------ */
+  var RULES = [
+    "You are the coach for one athlete's training log. You write the plan; they execute it and report back.",
+    "Be concrete and quantitative. Prescribe distances in miles, durations in minutes, and efforts the athlete can execute without interpretation.",
+    "",
+    "Rules you do not break:",
+    "- Raise weekly running volume by at most about 10 percent, and never by more than 5 miles in one step.",
+    "- Every fourth week is a deload, roughly 20-25 percent below the build week before it. Program it even when the athlete feels good.",
+    "- A great-feeling week is a reason to hold the planned progression, not to exceed it. When you hold them back, say so plainly and say why.",
+    "- At most two hard running days in a week, never on consecutive days.",
+    "- Keep the athlete's stated bike and swim minimums unless running volume is genuinely at risk. Total load injures people, not running load alone.",
+    "- Injury signals override the plan: pain that changes gait, pain that rises during a run, swelling the next morning, pain at rest, or pain above 3/10. Any of those means drop to the last symptom-free week's volume, hold two weeks, and advise seeing a physio. Never program through them.",
+    "- You are a coach, not a clinician. Name symptoms and refer; do not diagnose.",
+    "",
+    "Write prose like a coach talking to an athlete they know: direct, specific, no cheerleading, no hedging."
+  ].join("\n");
+
+  function contextBlock(opts) {
+    opts = opts || {};
+    var p = profile();
+    var L = [];
+    L.push("GOAL: " + (p.goal || "") );
+    L.push("TARGET: " + (p.targetMpw || "?") + " run mi/wk" +
+      (p.targetDate ? " by " + p.targetDate : " (no date set - propose one)"));
+    L.push("KEEP ALONGSIDE: " + (p.keep || "not specified"));
+    L.push("LIMITS: " + (p.limits || "none stated"));
+    L.push("TODAY: " + TODAY + " (" + DOW[(new Date().getDay() + 6) % 7] + "), current week " + THIS_WEEK);
+
+    var plan = state.plan;
+    if (plan) {
+      L.push("");
+      L.push("CURRENT MACROCYCLE (" + (plan.source || "coach") + ", built " +
+        String(plan.generatedAt || "?").slice(0, 10) + "):");
+      (plan.phases || []).forEach(function (ph) {
+        L.push("  phase " + ph.n + " " + ph.name + " weeks " + ph.weekFrom + "-" + ph.weekTo +
+          (ph.job ? ": " + ph.job : ""));
+      });
+      var t = targetFor(THIS_WEEK);
+      if (t) L.push("  this week's target: " + t.runMiles + " mi" + (t.deload ? " (deload)" : ""));
+    } else {
+      L.push("");
+      L.push("CURRENT MACROCYCLE: none yet.");
+    }
+
+    L.push("");
+    L.push("WEEKLY ACTUALS, oldest first (run mi / runs / longest / bike h / swim yd / lifts / avg run HR / planned mi):");
+    var nWeeks = opts.weeks || 12;
+    for (var i = nWeeks; i >= 0; i--) {
+      var k = weekAdd(THIS_WEEK, -i);
+      var r = rollup(k), t2 = targetFor(k);
+      if (!r.sessions.length && !t2) continue;
+      L.push("  " + k + "  " + n1(r.runMi) + " mi / " + r.runs + " runs / " + n1(r.longest) +
+        " long / " + n1(r.bikeMin / 60) + " h bike / " + n0(r.swimYd) + " yd swim / " +
+        r.lifts + " lift / " + (r.hrAvg ? n0(r.hrAvg) + " bpm" : "no hr") +
+        (t2 && t2.runMiles ? " / planned " + n0(t2.runMiles) + (t2.deload ? " deload" : "") : " / unplanned") +
+        (k === THIS_WEEK ? "   <- current week, in progress" : ""));
+    }
+
+    L.push("");
+    L.push("RECENT SESSIONS, newest first:");
+    var lim = opts.sessions || 24;
+    state.sessions.slice(0, lim).forEach(function (s) {
+      var f = state.feedback[s.id];
+      var bits = [s.date, s.sport];
+      if (s.sport === "swim") bits.push(n0(s.yards || 0) + "yd");
+      else if (s.miles) bits.push(n1(s.miles) + "mi");
+      if (s.movingMin) bits.push(n0(s.movingMin) + "min");
+      if (s.paceSecPerMi) bits.push(mmss(s.paceSecPerMi) + "/mi");
+      if (s.speedMph) bits.push(n1(s.speedMph) + "mph");
+      if (s.hrAvg) bits.push(n0(s.hrAvg) + "bpm");
+      if (s.elevFt) bits.push(n0(s.elevFt) + "ft");
+      if (s.runType) bits.push("[" + s.runType + "]");
+      if (s.lifts && s.lifts.length) {
+        bits.push("lifts: " + s.lifts.map(function (l) {
+          return l.ex + " " + (l.sets || "?") + "x" + (l.reps || "?") + (l.lb ? "@" + l.lb + "lb" : "");
+        }).join("; "));
+      }
+      if (f) {
+        bits.push("rpe " + (f.rpe || "?"));
+        bits.push("felt " + (FEEL[f.feel] || "?"));
+        if (f.pain) bits.push("PAIN " + f.pain + "/10" + (f.painSite ? " " + f.painSite : ""));
+        if (f.notes) bits.push('"' + f.notes.slice(0, 220) + '"');
+      } else {
+        bits.push("no note");
+      }
+      L.push("  " + bits.join(" | "));
+    });
+
+    var dkeys = Object.keys(state.digests).sort().reverse().slice(0, 2);
+    if (dkeys.length) {
+      L.push("");
+      L.push("RECENT WEEKLY DIGESTS, in the athlete's words:");
+      dkeys.forEach(function (k) {
+        var d = state.digests[k];
+        if (!d || !d.text) return;
+        L.push("  [" + k + "] " + d.text.slice(0, 1400).replace(/\s+/g, " "));
+      });
+    }
+
+    return L.join("\n");
+  }
+
+  function coachBusy(on, msg) {
+    state.busy = on;
+    var st = $("coachStatus");
+    st.hidden = !on && !msg;
+    st.className = "thinking";
+    st.textContent = msg || "";
+    document.querySelectorAll("[data-plan], #sendDigest, #buildPlan").forEach(function (b) {
+      b.disabled = on;
+    });
+  }
+  function coachErr(e) {
+    var map = {
+      not_granted: "This page hasn't been allowed to use Claude. Reopen it and allow Claude when asked.",
+      sampling_disabled: "Claude isn't available on this account.",
+      not_declared: "Claude planning isn't enabled for this page any more.",
+      rate_limited: "Claude is rate limited right now. Try again in a few minutes.",
+      session_expired: "Your Claude session expired. Reload the page and sign in again.",
+      prompt_too_large: "Too much history to send at once. This is a bug — tell Claude Code.",
+      invalid_json: "Claude's answer came back malformed. Try again.",
+      refused: "Claude declined that request. Try rewording the digest.",
+      empty_completion: "Claude returned nothing. Try again.",
+      cancelled: ""
+    };
+    var m = map[e && e.code];
+    return m != null ? m : "Claude couldn't finish that (" + ((e && e.code) || "unknown") + "). Try again.";
+  }
+  function dbErr(e) {
+    var c = e && e.code;
+    if (c === "not_granted" || c === "capability_disabled") return "Saving isn't available in this view.";
+    if (c === "resource_exhausted") return "Too many writes at once. Wait a moment and retry.";
+    if (c === "quota_exceeded") return "The log is full. Delete old sessions to make room.";
+    if (c === "revoked") return "Access to the log was withdrawn. Reload the page.";
+    return "Couldn't save (" + (c || "unknown") + "). Try again.";
+  }
+
+  async function askJson(prompt, label) {
+    var stream = $("coachStream");
+    stream.hidden = false;
+    stream.textContent = "";
+    coachBusy(true, label + " — thinking, this takes up to a minute…");
+    try {
+      var out = await state.sample.json(prompt, {
+        modelTier: "complex",
+        cache: false,
+        onText: function (o) {
+          stream.textContent = o.text.slice(-900);
+          stream.scrollTop = stream.scrollHeight;
+        }
+      });
+      stream.hidden = true;
+      return out;
+    } finally {
+      coachBusy(false, "");
+    }
+  }
+
+  /* ---- plan a week ---- */
+  async function planWeek(weekKey) {
+    if (!state.sample || !state.db) return;
+    var prev = weekAdd(weekKey, -1);
+    var prompt = RULES + "\n\n=== ATHLETE DATA ===\n" + contextBlock({ weeks: 12, sessions: 22 }) +
+      "\n\n=== TASK ===\nWrite the training week for " + weekKey + " (Monday " +
+      ymd(mondayOf(weekKey)) + " through Sunday). Decide the week's run mileage yourself from the " +
+      "macrocycle target, what they actually did in " + prev + ", and how their notes read. If the " +
+      "evidence says hold or drop, hold or drop, and say why in coachNote.\n\n" +
+      "Reply with only a JSON object of this shape:\n" +
+      '{"week":"' + weekKey + '","targets":{"runMiles":52,"bikeHours":2.5,"swimSessions":2,"strengthSessions":2},' +
+      '"deload":false,"verdict":"push|hold|back off",' +
+      '"focus":"one short line naming the week\'s job",' +
+      '"coachNote":"2-4 short paragraphs, plain text, \\n\\n between them",' +
+      '"adjustments":["specific change from what they did last week"],' +
+      '"days":[{"dow":"Mon","date":"' + ymd(mondayOf(weekKey)) + '","sessions":[' +
+      '{"sport":"run|bike|swim|lift|strength|mobility","title":"8 mi easy","miles":8,"minutes":70,' +
+      '"intensity":"easy|steady|tempo|intervals|long|recovery|technique|heavy","detail":"one sentence of instruction","optional":false}]}]}\n' +
+      "Include all seven days in order starting Monday; a rest day is a day with an empty sessions array. " +
+      "Every run session needs miles. Every bike, swim, lift needs minutes.";
+
+    var out = await askJson(prompt, "Planning " + weekKey);
+    if (!out || !Array.isArray(out.days)) throw { code: "invalid_json" };
+
+    var mon = mondayOf(weekKey);
+    var days = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(mon); d.setDate(d.getDate() + i);
+      var src = out.days[i] || {};
+      days.push({
+        dow: DOW[i], date: ymd(d),
+        sessions: (Array.isArray(src.sessions) ? src.sessions : []).map(function (s) {
+          return {
+            sport: String(s.sport || "other"),
+            title: String(s.title || ""),
+            miles: +s.miles || null,
+            minutes: +s.minutes || null,
+            intensity: s.intensity ? String(s.intensity) : null,
+            detail: s.detail ? String(s.detail) : null,
+            optional: !!s.optional
+          };
+        })
+      });
+    }
+    await state.db.doc("weeks/" + weekKey).set({
+      week: weekKey,
+      targets: {
+        runMiles: +(out.targets && out.targets.runMiles) || null,
+        bikeHours: +(out.targets && out.targets.bikeHours) || null,
+        swimSessions: +(out.targets && out.targets.swimSessions) || null,
+        strengthSessions: +(out.targets && out.targets.strengthSessions) || null
+      },
+      deload: !!out.deload,
+      verdict: out.verdict ? String(out.verdict) : null,
+      focus: out.focus ? String(out.focus) : null,
+      coachNote: out.coachNote ? String(out.coachNote) : null,
+      adjustments: Array.isArray(out.adjustments) ? out.adjustments.map(String).slice(0, 8) : [],
+      days: days,
+      source: "claude",
+      generatedAt: new Date().toISOString()
+    });
+  }
+
+  /* ---- review the digest ---- */
+  async function reviewDigest() {
+    if (!state.sample || !state.db) return;
+    var text = $("digestBox").value.trim();
+    if (!text) { coachBusy(false, "Write the digest first."); $("coachStatus").hidden = false; return; }
+    await state.db.doc("digests/" + THIS_WEEK).set({
+      week: THIS_WEEK, text: text, submittedAt: new Date().toISOString()
+    });
+
+    var last = weekAdd(THIS_WEEK, -1);
+    var prompt = RULES + "\n\n=== ATHLETE DATA ===\n" + contextBlock({ weeks: 12, sessions: 26 }) +
+      "\n\n=== THIS MORNING'S DIGEST (week just finished, " + last + ") ===\n" + text +
+      "\n\n=== TASK ===\nReview the week that just ended against what was planned, then set the direction " +
+      "for " + THIS_WEEK + ". Weigh what they wrote against the numbers: if the digest sounds great but the " +
+      "load jumped, hold them. If the digest sounds flat and the numbers are fine, look for sleep, life load, " +
+      "or a pace creep in easy runs.\n\n" +
+      "Reply with only a JSON object of this shape:\n" +
+      '{"verdict":"push|hold|back off","summary":"2-4 short paragraphs of prose, \\n\\n between them",' +
+      '"observations":["something true in the numbers they may not have noticed"],' +
+      '"adjustments":["a specific change for the coming week"],' +
+      '"flags":["a symptom or trend to watch, only if warranted"],' +
+      '"nextWeek":{"runMiles":52,"bikeHours":2.5,"swimSessions":2,"strengthSessions":2,"deload":false}}';
+
+    var out = await askJson(prompt, "Reviewing " + last);
+    await state.db.doc("digests/" + THIS_WEEK).set({
+      week: THIS_WEEK, text: text, submittedAt: new Date().toISOString(),
+      review: {
+        verdict: out.verdict ? String(out.verdict) : null,
+        summary: out.summary ? String(out.summary) : "",
+        observations: Array.isArray(out.observations) ? out.observations.map(String).slice(0, 8) : [],
+        adjustments: Array.isArray(out.adjustments) ? out.adjustments.map(String).slice(0, 8) : [],
+        flags: Array.isArray(out.flags) ? out.flags.map(String).slice(0, 6) : [],
+        nextWeek: out.nextWeek || null,
+        generatedAt: new Date().toISOString()
+      }
+    });
+    coachBusy(false, "Review saved. Planning the week now…");
+    $("coachStatus").hidden = false;
+    await planWeek(THIS_WEEK);
+    coachBusy(false, "Week planned.");
+    $("coachStatus").hidden = false;
+  }
+
+  /* ---- build the macrocycle ---- */
+  async function buildPlan() {
+    if (!state.sample || !state.db) return;
+    var p = profile();
+    var prompt = RULES + "\n\n=== ATHLETE DATA ===\n" + contextBlock({ weeks: 16, sessions: 20 }) +
+      "\n\n=== TASK ===\nBuild the macrocycle that gets this athlete from the volume their recent weeks " +
+      "actually show to " + (p.targetMpw || 75) + " run miles a week, held sustainably. Start from the " +
+      "evidence in the weekly actuals above, not from an assumption about where they should be. " +
+      "Set the timeline yourself and say how long it takes. Use 3 to 5 phases. Give week-by-week run " +
+      "targets for the first 26 weeks starting " + THIS_WEEK + ", with every fourth week a deload, and " +
+      "bike, swim and strength alongside so their stated minimums hold.\n\n" +
+      "Reply with only a JSON object of this shape:\n" +
+      '{"targetDate":"2027-03-29","rationale":"one paragraph on the shape of the plan and why it is shaped that way",' +
+      '"phases":[{"n":1,"name":"Rebuild","weekFrom":1,"weekTo":8,"job":"one or two sentences on what this phase is for"}],' +
+      '"weekTargets":[{"week":"' + THIS_WEEK + '","index":1,"phase":1,"runMiles":34,"bikeHours":2.5,' +
+      '"swimSessions":2,"strengthSessions":3,"deload":false}]}\n' +
+      "weekTargets must be 26 consecutive ISO weeks starting " + THIS_WEEK + ", index 1 to 26.";
+
+    var out = await askJson(prompt, "Building the plan");
+    var wt = (Array.isArray(out.weekTargets) ? out.weekTargets : []).map(function (t, i) {
+      return {
+        week: t.week && /^\d{4}-W\d{2}$/.test(t.week) ? t.week : weekAdd(THIS_WEEK, i),
+        index: +t.index || i + 1,
+        phase: +t.phase || null,
+        runMiles: +t.runMiles || null,
+        bikeHours: +t.bikeHours || null,
+        swimSessions: +t.swimSessions || null,
+        strengthSessions: +t.strengthSessions || null,
+        deload: !!t.deload
+      };
+    }).slice(0, 30);
+    await state.db.doc("plan/current").set({
+      goal: p.goal || "",
+      targetMpw: p.targetMpw || null,
+      targetDate: out.targetDate ? String(out.targetDate) : (p.targetDate || ""),
+      rationale: out.rationale ? String(out.rationale) : "",
+      phases: (Array.isArray(out.phases) ? out.phases : []).map(function (ph) {
+        return { n: +ph.n || 0, name: String(ph.name || ""), weekFrom: +ph.weekFrom || 0,
+          weekTo: +ph.weekTo || 0, job: String(ph.job || "") };
+      }),
+      weekTargets: wt,
+      source: "claude",
+      generatedAt: new Date().toISOString()
+    });
+    coachBusy(false, "Plan rebuilt.");
+    $("coachStatus").hidden = false;
+  }
+
+  async function guard(fn) {
+    if (state.busy) return;
+    try { await fn(); }
+    catch (e) {
+      console.error(e);
+      var st = $("coachStatus");
+      st.hidden = false;
+      st.className = "thinking err";
+      st.textContent = e && e.code ? coachErr(e) : dbErr(e);
+      $("coachStream").hidden = true;
+      state.busy = false;
+      document.querySelectorAll("[data-plan], #sendDigest, #buildPlan").forEach(function (b) {
+        b.disabled = false;
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * events
+   * ------------------------------------------------------------------ */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || typeof t.closest !== "function") return;
+    if (t.closest("[data-close]")) { closeSheet(); return; }
+    var fb = t.closest("[data-fb]");
+    if (fb) { feedbackSheet(fb.getAttribute("data-fb")); return; }
+    var op = t.closest("[data-open]");
+    if (op) { feedbackSheet(op.getAttribute("data-open")); return; }
+    var lg = t.closest("[data-log]");
+    if (lg) { manualSheet(lg.getAttribute("data-log")); return; }
+    var pw = t.closest("[data-plan]");
+    if (pw) { guard(function () { return planWeek(pw.getAttribute("data-plan")); }); return; }
+    if (t.id === "fbNext") { var n = needsFeedback(); if (n.length) feedbackSheet(n[0].id); return; }
+    if (t.id === "logManual" || t.id === "logManual2") { manualSheet("run"); return; }
+    if (t.id === "sendDigest") { guard(reviewDigest); return; }
+    if (t.id === "buildPlan") { guard(buildPlan); return; }
+    if (t.id === "saveDigest") { saveDigestDraft(); return; }
+    if (t.id === "exportLog") { exportLog(); return; }
+  });
+
+  async function saveDigestDraft() {
+    if (!state.db) return;
+    var st = $("coachStatus");
+    st.hidden = false;
+    st.className = "thinking";
+    st.textContent = "Saving…";
+    try {
+      await state.db.doc("digests/" + THIS_WEEK).set({
+        week: THIS_WEEK, text: $("digestBox").value.trim(),
+        submittedAt: new Date().toISOString()
+      });
+      st.textContent = "Draft saved.";
+    } catch (e) { st.className = "thinking err"; st.textContent = dbErr(e); }
+  }
+
+  async function exportLog() {
+    var dl = await claudeUse("downloads");
+    var payload = JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      profile: state.profile, plan: state.plan,
+      weeks: state.weeks, sessions: state.sessions,
+      feedback: state.feedback, digests: state.digests
+    }, null, 1);
+    if (!dl) {
+      var st = $("coachStatus");
+      st.hidden = false; st.className = "thinking err";
+      st.textContent = "Downloads aren't available in this view.";
+      return;
+    }
+    try {
+      await dl.save({ filename: "volume-ledger-" + TODAY + ".json", data: payload });
+    } catch (e) { console.error("export", e); }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * boot
+   * ------------------------------------------------------------------ */
+  function claudeUse(name) {
+    if (!window.claude || typeof window.claude.use !== "function") return Promise.resolve(null);
+    return window.claude.use(name).catch(function () { return null; });
+  }
+
+  render();
+
+  claudeUse("sample").then(function (s) {
+    state.sample = s || null;
+    state.sampleResolved = true;
+    render();
+  });
+
+  claudeUse("db").then(function (db) {
+    state.dbResolved = true;
+    if (!db) {
+      state.db = null;
+      state.loaded = true;
+      $("importStatus").className = "thinking err";
+      $("importStatus").textContent = "This view can't reach the log's data store, so nothing can be saved here.";
+      render();
+      return;
+    }
+    state.db = db;
+    var cut = weekAdd(THIS_WEEK, -14);
+    var dateCut = ymd(mondayOf(cut));
+
+    db.doc("config/profile").onSnapshot(function (s) {
+      state.profile = s.exists ? s.data() : null; render();
+    }, onDbErr);
+    db.doc("plan/current").onSnapshot(function (s) {
+      state.plan = s.exists ? s.data() : null; render();
+    }, onDbErr);
+    db.doc("meta/sync").onSnapshot(function (s) {
+      state.sync = s.exists ? s.data() : null; render();
+    }, onDbErr);
+    db.collection("weeks").where("week", ">=", cut).onSnapshot(function (q) {
+      var m = {};
+      q.docs.forEach(function (d) { m[d.id] = d.data(); });
+      state.weeks = m; render();
+    }, onDbErr);
+    db.collection("sessions").where("date", ">=", dateCut).orderBy("date", "desc")
+      .limit(400).onSnapshot(function (q) {
+        state.sessions = q.docs.map(function (d) {
+          var x = d.data(); x.id = x.id || d.id; return x;
+        });
+        state.loaded = true;
+        render();
+      }, onDbErr);
+    db.collection("feedback").where("date", ">=", dateCut).limit(400)
+      .onSnapshot(function (q) {
+        var m = {};
+        q.docs.forEach(function (d) { m[d.id] = d.data(); });
+        state.feedback = m; render();
+      }, onDbErr);
+    db.collection("digests").orderBy("week", "desc").limit(10)
+      .onSnapshot(function (q) {
+        var m = {};
+        q.docs.forEach(function (d) { m[d.id] = d.data(); });
+        state.digests = m; render();
+      }, onDbErr);
+  });
+
+  function onDbErr(e) {
+    console.error("db", e);
+    if (e && (e.code === "revoked" || e.code === "not_granted")) {
+      $("importStatus").className = "thinking err";
+      $("importStatus").textContent = dbErr(e);
+    }
+  }
+})();
+</script>

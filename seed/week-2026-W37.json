@@ -1,0 +1,162 @@
+{
+  "week": "2026-W37",
+  "index": 1,
+  "targets": {
+    "runMiles": 28,
+    "bikeHours": 2.0,
+    "swimSessions": 2,
+    "strengthSessions": 3
+  },
+  "deload": false,
+  "verdict": null,
+  "focus": "Prove the knee tolerates five running days at 28 miles.",
+  "coachNote": "This week is the plan document's opening week, seeded so the ledger isn't empty. Five running days, all easy, nothing over nine miles, Monday off running as it will be all year.\n\nBefore this becomes a real plan it needs your actual history. Run a Strava pull, import it in Setup, then rebuild the plan so the phases and week targets start from the volume you are genuinely carrying rather than from an assumption of 28 miles.",
+  "adjustments": [],
+  "days": [
+    {
+      "dow": "Mon",
+      "date": "2026-09-07",
+      "sessions": [
+        {
+          "sport": "swim",
+          "title": "30 min technique",
+          "minutes": 30,
+          "intensity": "technique",
+          "detail": "Freestyle only. Drills over yardage. No breaststroke kick.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Tue",
+      "date": "2026-09-08",
+      "sessions": [
+        {
+          "sport": "run",
+          "title": "5 mi easy",
+          "miles": 5,
+          "minutes": 45,
+          "intensity": "easy",
+          "detail": "Conversational the whole way. If the knee talks, cut it short and say so in the note.",
+          "optional": false
+        },
+        {
+          "sport": "lift",
+          "title": "Knee rehab + posterior chain",
+          "minutes": 45,
+          "intensity": "heavy",
+          "detail": "Rehab-led. This is the priority session of the week, not an accessory.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Wed",
+      "date": "2026-09-09",
+      "sessions": [
+        {
+          "sport": "run",
+          "title": "5 mi easy",
+          "miles": 5,
+          "minutes": 45,
+          "intensity": "easy",
+          "detail": "Flat ground. Same effort as Tuesday.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Thu",
+      "date": "2026-09-10",
+      "sessions": [
+        {
+          "sport": "run",
+          "title": "4 mi easy",
+          "miles": 4,
+          "minutes": 36,
+          "intensity": "easy",
+          "detail": "Short by design, so the bike can carry the aerobic work after it.",
+          "optional": false
+        },
+        {
+          "sport": "bike",
+          "title": "45 min easy",
+          "minutes": 45,
+          "intensity": "easy",
+          "detail": "85-95 rpm, seated. Saddle high enough that the leg is nearly straight at the bottom.",
+          "optional": false
+        },
+        {
+          "sport": "lift",
+          "title": "Single-leg + core",
+          "minutes": 30,
+          "intensity": "steady",
+          "detail": "Step-downs, split squats, calf work. Quality over load.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Fri",
+      "date": "2026-09-11",
+      "sessions": [
+        {
+          "sport": "swim",
+          "title": "45 min",
+          "minutes": 45,
+          "intensity": "technique",
+          "detail": "Freestyle only.",
+          "optional": false
+        },
+        {
+          "sport": "lift",
+          "title": "Heavy hinge + upper",
+          "minutes": 50,
+          "intensity": "heavy",
+          "detail": "Trap bar or RDL, then upper body. Load the hinge properly.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Sat",
+      "date": "2026-09-12",
+      "sessions": [
+        {
+          "sport": "run",
+          "title": "9 mi long",
+          "miles": 9,
+          "minutes": 85,
+          "intensity": "long",
+          "detail": "The week's longest run and its only real demand. Easy pace, flat route.",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "dow": "Sun",
+      "date": "2026-09-13",
+      "sessions": [
+        {
+          "sport": "run",
+          "title": "5 mi easy",
+          "miles": 5,
+          "minutes": 45,
+          "intensity": "easy",
+          "detail": "Legs off yesterday.",
+          "optional": false
+        },
+        {
+          "sport": "bike",
+          "title": "75 min easy",
+          "minutes": 75,
+          "intensity": "easy",
+          "detail": "Longest ride of the week. Aerobic load the knee doesn't pay for.",
+          "optional": false
+        }
+      ]
+    }
+  ],
+  "source": "seed",
+  "generatedAt": "2026-09-07T00:00:00Z"
+}

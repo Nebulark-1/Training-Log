@@ -1,0 +1,560 @@
+{
+  "goal": "Build running volume to 75 miles a week and hold it, keeping bike and swim volume in every week.",
+  "targetMpw": 75,
+  "targetDate": "",
+  "rationale": "Seeded from the twelve-month plan document, which assumes a start near 28 miles a week coming off a knee injury. Running mileage is deliberately flat through the whole second phase and cycling peaks in the middle of the year rather than the end: both look like mistakes on paper and are the reason the plan works. These week targets are a placeholder until a Strava pull shows where the volume actually is, then rebuild the plan from that.",
+  "phases": [
+    {
+      "n": 1,
+      "name": "Rebuild",
+      "weekFrom": 1,
+      "weekTo": 13,
+      "job": "Get back to volume you already know you can hold, and prove the knee tolerates it. This phase is about tissue, not fitness."
+    },
+    {
+      "n": 2,
+      "name": "Consolidate",
+      "weekFrom": 14,
+      "weekTo": 26,
+      "job": "Hold the low fifties for three months without incident. Durability is built by repetition at a load, not by arriving at it."
+    },
+    {
+      "n": 3,
+      "name": "Build",
+      "weekFrom": 27,
+      "weekTo": 39,
+      "job": "Add running volume into the aerobic base built on the bike, and start training the specific quality long events need: running tired."
+    },
+    {
+      "n": 4,
+      "name": "Peak",
+      "weekFrom": 40,
+      "weekTo": 52,
+      "job": "Reach the top of the range and hold it briefly. Peak is a ceiling touched once, not a level to live at."
+    }
+  ],
+  "weekTargets": [
+    {
+      "week": "2026-W37",
+      "index": 1,
+      "phase": 1,
+      "runMiles": 28,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W38",
+      "index": 2,
+      "phase": 1,
+      "runMiles": 30,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W39",
+      "index": 3,
+      "phase": 1,
+      "runMiles": 33,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W40",
+      "index": 4,
+      "phase": 1,
+      "runMiles": 25,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2026-W41",
+      "index": 5,
+      "phase": 1,
+      "runMiles": 35,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W42",
+      "index": 6,
+      "phase": 1,
+      "runMiles": 37,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W43",
+      "index": 7,
+      "phase": 1,
+      "runMiles": 40,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W44",
+      "index": 8,
+      "phase": 1,
+      "runMiles": 30,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2026-W45",
+      "index": 9,
+      "phase": 1,
+      "runMiles": 42,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W46",
+      "index": 10,
+      "phase": 1,
+      "runMiles": 45,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W47",
+      "index": 11,
+      "phase": 1,
+      "runMiles": 48,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W48",
+      "index": 12,
+      "phase": 1,
+      "runMiles": 36,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2026-W49",
+      "index": 13,
+      "phase": 1,
+      "runMiles": 50,
+      "bikeHours": 1.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W50",
+      "index": 14,
+      "phase": 2,
+      "runMiles": 50,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W51",
+      "index": 15,
+      "phase": 2,
+      "runMiles": 50,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W52",
+      "index": 16,
+      "phase": 2,
+      "runMiles": 52,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2026-W53",
+      "index": 17,
+      "phase": 2,
+      "runMiles": 40,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W01",
+      "index": 18,
+      "phase": 2,
+      "runMiles": 50,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W02",
+      "index": 19,
+      "phase": 2,
+      "runMiles": 52,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W03",
+      "index": 20,
+      "phase": 2,
+      "runMiles": 52,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W04",
+      "index": 21,
+      "phase": 2,
+      "runMiles": 40,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W05",
+      "index": 22,
+      "phase": 2,
+      "runMiles": 50,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W06",
+      "index": 23,
+      "phase": 2,
+      "runMiles": 52,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W07",
+      "index": 24,
+      "phase": 2,
+      "runMiles": 54,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W08",
+      "index": 25,
+      "phase": 2,
+      "runMiles": 42,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W09",
+      "index": 26,
+      "phase": 2,
+      "runMiles": 52,
+      "bikeHours": 3.0,
+      "swimSessions": 3,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W10",
+      "index": 27,
+      "phase": 3,
+      "runMiles": 54,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W11",
+      "index": 28,
+      "phase": 3,
+      "runMiles": 56,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W12",
+      "index": 29,
+      "phase": 3,
+      "runMiles": 58,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W13",
+      "index": 30,
+      "phase": 3,
+      "runMiles": 45,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W14",
+      "index": 31,
+      "phase": 3,
+      "runMiles": 58,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W15",
+      "index": 32,
+      "phase": 3,
+      "runMiles": 60,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W16",
+      "index": 33,
+      "phase": 3,
+      "runMiles": 62,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W17",
+      "index": 34,
+      "phase": 3,
+      "runMiles": 48,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W18",
+      "index": 35,
+      "phase": 3,
+      "runMiles": 60,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W19",
+      "index": 36,
+      "phase": 3,
+      "runMiles": 63,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W20",
+      "index": 37,
+      "phase": 3,
+      "runMiles": 65,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W21",
+      "index": 38,
+      "phase": 3,
+      "runMiles": 50,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": true
+    },
+    {
+      "week": "2027-W22",
+      "index": 39,
+      "phase": 3,
+      "runMiles": 62,
+      "bikeHours": 2.5,
+      "swimSessions": 2,
+      "strengthSessions": 3,
+      "deload": false
+    },
+    {
+      "week": "2027-W23",
+      "index": 40,
+      "phase": 4,
+      "runMiles": 64,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W24",
+      "index": 41,
+      "phase": 4,
+      "runMiles": 66,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W25",
+      "index": 42,
+      "phase": 4,
+      "runMiles": 68,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W26",
+      "index": 43,
+      "phase": 4,
+      "runMiles": 52,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": true
+    },
+    {
+      "week": "2027-W27",
+      "index": 44,
+      "phase": 4,
+      "runMiles": 68,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W28",
+      "index": 45,
+      "phase": 4,
+      "runMiles": 71,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W29",
+      "index": 46,
+      "phase": 4,
+      "runMiles": 74,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W30",
+      "index": 47,
+      "phase": 4,
+      "runMiles": 56,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": true
+    },
+    {
+      "week": "2027-W31",
+      "index": 48,
+      "phase": 4,
+      "runMiles": 74,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W32",
+      "index": 49,
+      "phase": 4,
+      "runMiles": 78,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W33",
+      "index": 50,
+      "phase": 4,
+      "runMiles": 60,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": false
+    },
+    {
+      "week": "2027-W34",
+      "index": 51,
+      "phase": 4,
+      "runMiles": 45,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": true
+    },
+    {
+      "week": "2027-W35",
+      "index": 52,
+      "phase": 4,
+      "runMiles": 30,
+      "bikeHours": 1.0,
+      "swimSessions": 2,
+      "strengthSessions": 2,
+      "deload": true
+    }
+  ],
+  "source": "seed",
+  "generatedAt": "2026-09-07T00:00:00Z"
+}
