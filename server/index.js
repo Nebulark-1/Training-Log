@@ -1,5 +1,6 @@
 // Volume Ledger — local web server.
 import express from 'express';
+import net from 'node:net';
 import path from 'node:path';
 import { config, encrypt } from './config.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
@@ -271,7 +272,43 @@ app.use((err, _req, res, _next) => {
 pruneExpired();
 setInterval(pruneExpired, 3600_000).unref();
 
-app.listen(config.port, config.host, () => {
+/**
+ * Is something already serving this port?
+ *
+ * Windows sets SO_REUSEADDR semantics that let a second process bind an
+ * address another process is already listening on, so `listen` succeeds and
+ * EADDRINUSE never fires — the new process prints a healthy banner while the
+ * OLD one keeps answering the browser. Every .env change and code edit then
+ * looks like it did nothing. Connecting first is the only reliable check.
+ */
+function portBusy(host, port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: host === '0.0.0.0' ? '127.0.0.1' : host, port });
+    const done = (busy) => { socket.destroy(); resolve(busy); };
+    socket.setTimeout(800);
+    socket.on('connect', () => done(true));
+    socket.on('timeout', () => done(false));
+    socket.on('error', () => done(false));
+  });
+}
+
+function reportPortConflict() {
+  console.error(`\n  Port ${config.port} is already in use.\n`);
+  console.error('  Another Volume Ledger is still running, and the page in your browser is');
+  console.error('  being served by THAT process — so .env changes and code edits will not');
+  console.error('  show up until you stop it.\n');
+  console.error('  Stop it, then start again:\n');
+  console.error(`    Get-NetTCPConnection -LocalPort ${config.port} -State Listen |`);
+  console.error('      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n');
+  console.error(`  Or run this one somewhere else:  PORT=4318 npm start\n`);
+}
+
+if (await portBusy(config.host, config.port)) {
+  reportPortConflict();
+  process.exit(1);
+}
+
+const server = app.listen(config.port, config.host, () => {
   const url = `http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`;
   console.log(`\n  Volume Ledger  ${url}\n`);
   console.log(`  sign-in    ${config.google.enabled ? 'Google' : config.devLoginAllowed ? 'local (no Google credentials set)' : 'NOT CONFIGURED'}`);
@@ -279,4 +316,14 @@ app.listen(config.port, config.host, () => {
   const claude = claudeStatus('');
   console.log(`  claude     ${claude.available ? `${claude.model} via ${claude.source}` : 'no credentials found'}`);
   console.log(`  database   ${config.dbPath}\n`);
+  if (config.strava.enabled) {
+    console.log('  Strava credentials are loaded. Each account still has to authorize:');
+    console.log('  open the site, go to Setup, and click Connect Strava.\n');
+  }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') reportPortConflict();
+  else console.error('\n  Server failed to start:', err.message, '\n');
+  process.exit(1);
 });
