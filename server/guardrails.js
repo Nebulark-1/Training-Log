@@ -44,11 +44,15 @@ export function checkWeekPlan(plan, history, context = {}) {
   const out = [];
   const volumes = plannedVolumes(plan);
   const prev = history.previous || {};
+  // The baseline is the best of the last few weeks, not simply the last one.
+  // Otherwise the ordinary deload-then-resume pattern — 36, deload to 28, back
+  // to 38 — reads as a 36% spike, and every fourth week would be refused.
+  const baseline = history.baseline || prev;
 
   // --- volume progression, per sport, in that sport's own units -----------
   for (const sport of ENDURANCE_SPORTS) {
     const planned = volumes[sport] || 0;
-    const last = prev[sport] || 0;
+    const last = baseline[sport] || 0;
     if (!planned || !last) continue;
     const info = sportInfo(sport);
     const allowedPct = info.step.pctPerWeek / 100;

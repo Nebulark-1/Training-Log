@@ -646,11 +646,22 @@ export function applyWeek(userId, weekKey, out, source = 'claude', { force = fal
   return { ok: true, violations, week: doc };
 }
 
-/** Previous week's actual volumes, for the progression check. */
+/**
+ * Actual volumes behind this week: the immediately previous week (which the
+ * pain check uses) and the best of the last three (which the progression
+ * ceiling uses, so a deload does not become an artificial ceiling).
+ */
 function weekHistory(userId, weekKey) {
-  const prev = weekAdd(weekKey, -1);
   const activities = getActivities(userId, ymd(mondayOf(weekAdd(weekKey, -6))), 400);
-  return { previous: rollup(activities, prev).volumes };
+  const previous = rollup(activities, weekAdd(weekKey, -1)).volumes;
+  const baseline = {};
+  for (let i = 1; i <= 3; i++) {
+    const vols = rollup(activities, weekAdd(weekKey, -i)).volumes;
+    for (const [sport, value] of Object.entries(vols)) {
+      baseline[sport] = Math.max(baseline[sport] || 0, value);
+    }
+  }
+  return { previous, baseline };
 }
 
 function weekContext(userId, weekKey) {
