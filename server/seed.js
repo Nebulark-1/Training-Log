@@ -102,10 +102,24 @@ export function seedUser(userId) {
   }
 }
 
-/** Does this week's strength work carry resolved exercises? */
+/**
+ * Is a seeded week in the current format?
+ *
+ * Checking only "does it have exercises" was not enough: a week seeded by an
+ * earlier version had exercises, but no per-sport `volumes`, no
+ * `programSession`, and no `exId` on the movements — so logged lifts keyed
+ * under different ids than the program, the program read as never logged, and
+ * progression had no history to work from.
+ */
 function hasResolvedStrength(weekDoc) {
+  if (!weekDoc.volumes) return false;
   const strength = (weekDoc.days || [])
     .flatMap((d) => d.sessions || [])
     .filter((s) => isStrength(s.sport));
-  return strength.length > 0 && strength.every((s) => s.exercises?.length);
+  if (!strength.length) return false;
+  return strength.every((s) => (
+    s.programSession
+    && s.exercises?.length
+    && s.exercises.every((e) => e.exId)
+  ));
 }
