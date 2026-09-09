@@ -37,13 +37,19 @@ before running more than one instance).
 | `server/auth.js` | Google OAuth, sessions, the local dev account |
 | `server/strava.js` | Strava OAuth, token refresh, sync and normalization |
 | `server/coach.js` | Claude calls — context building and structured plans |
+| `server/program.js` | The strength program: progression, prescriptions, off-program queue |
+| `server/guardrails.js` | The training rules, enforced in code |
+| `server/fitness.js` | Derived metrics and the endurance / speed / confidence scores |
 | `server/db.js` | SQLite schema and queries (`node:sqlite`, no native build) |
-| `server/seed.js` | First-run seeding, re-based onto the current week |
-| `public/` | The browser app (`app.js`, `app.css`, `lib/dates.js`) |
+| `server/cli.js` | `npm run coach` — the same loop without an API key |
+| `public/app.js` | App shell and router |
+| `public/pages/` | One module per page: today, week, strength, progress, plan, coach, log, settings |
+| `public/components/` | Lift log, session sheets, charts |
+| `public/lib/` | Shared with the server: dates, sports, movements, UI helpers |
 | `seed/` | The starting plan, from the original 12-month plan document |
 
-`public/lib/dates.js` is imported by both the server and the browser, so ISO
-week keys can never drift between them.
+`public/lib/` is imported by both sides, so ISO week keys, sport units and the
+movement catalog can never drift between server and browser.
 
 ## Connecting Strava
 
@@ -69,8 +75,92 @@ for rides, gear, the activity description, per-mile splits and laps for the last
 28 days, and Strava's own long-run / workout / race labels.
 
 **Lifting weights are the exception.** Strava records a weight session's
-duration and heart rate but not what you lifted, so sets, reps and load are
-entered in the app — open any lift session and the note sheet has a lift table.
+duration and heart rate but not what you lifted, so strength is logged in the
+app. See the next section — it works differently from everything else.
+
+## Strength: a program, not a weekly guess
+
+Endurance work is planned week to week. Strength is not, because tendons adapt
+over months and a program that churns its exercise list never loads anything
+long enough to matter. So there are two separate mechanisms:
+
+**The core program** (`/strength`) is a small, stable set of movements grouped
+into sessions. Each movement has a pattern (hinge, single-leg, calf, trunk...),
+a role (`core` or `trial`), a set and rep target, and a cue. A weekly plan does
+not contain exercises at all — it assigns a *program session* to a day, and the
+app resolves the movements from the program.
+
+**Load progression is deterministic and needs no AI.** Hit every set at the
+target reps at RPE 8 or below and the weight goes up next session: 10 lb on a
+hinge or squat, 5 on a press or single-leg lift. Miss reps, or grind at RPE 9,
+and it holds. A movement with no logged history is prescribed as a *calibration
+set* — work up to the rep target and log what you used. Genuinely unloaded work
+(isometrics, planks, band work) is marked bodyweight and progresses by time or
+reps instead.
+
+**Changing the movement list goes through a review**, and the guardrails are
+deliberately tight:
+
+| Limit | Value |
+| --- | --- |
+| Movements added per review | 2 |
+| Core movements removed per review | 1, and never without a stated reason |
+| Movements per session | 6 |
+| Load jump | 15% warns, 30% is refused |
+| Weeks before a core movement can be judged | 6 |
+
+**Logging is per set.** Reps, weight and optional RPE for every set, prefilled
+from the prescription so you are correcting numbers rather than typing a session
+from scratch. That is what makes estimated 1RM, honest progression and the
+strength trend possible — a single "3×5 @ 225" row cannot tell you the third set
+only got three.
+
+**Anything you log that is not in the program** — a farmer's carry you felt like
+doing — is recorded as off-program and queued on the Strength page. At the next
+review the coach rules on each one: promote it into the program, give it a trial
+with a review date, or leave it out and say why. Doing something once is not a
+reason to program it.
+
+## Guardrails
+
+The coaching prompt states the training rules, but a prompt is a request. For
+anything that could get someone hurt the check runs in code, in
+`server/guardrails.js`, where it can actually stop a plan being stored.
+
+`block` refuses the plan; `warn` stores it with the violation attached and shown
+on the page. Blocking rules: a volume jump more than 50% past the step ceiling,
+more than two hard days, and any volume increase after pain of 4/10 or worse was
+logged. Warnings cover the deload cadence, back-to-back hard days, a long run
+over a third of the week, and using a declared rest day.
+
+## The fitness model
+
+`/progress` computes everything from the log. Two layers, and the distinction
+matters:
+
+**Primitives** are arithmetic — daily and rolling load, intensity distribution,
+efficiency factor (metres per minute per heartbeat), aerobic decoupling
+(pace-to-HR drift across a long run), per-sport volume. These are either right
+or they are a bug.
+
+**Scores** are opinions expressed as numbers, and they are v0:
+
+- **Endurance** — how much aerobic work the body is currently carrying, against
+  the most it has ever carried. Chronic 28-day load does most of the work.
+- **Speed** — the quality of that work, independent of amount: share of time
+  above aerobic base, whether easy pace at a given heart rate is improving,
+  whether best efforts are trending faster. Six easy hours a day scores high on
+  endurance and low here, by design.
+- **Goal confidence** — the odds of arriving. Volume goals compare the ramp
+  still required against the ramp you have actually sustained; race-time goals
+  compare a Riegel projection against the target. Both are penalized by logged
+  pain.
+
+Every score is measured **against your own history**, not a population, because
+this app has no population data. Every input is shown on the page next to the
+number, so the formula can be argued with. Acute:chronic load ratio is reported
+descriptively and never as a risk verdict — that literature is genuinely
+contested.
 
 ## Connecting Claude
 

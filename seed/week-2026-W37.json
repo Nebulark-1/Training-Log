@@ -10,7 +10,7 @@
   "deload": false,
   "verdict": null,
   "focus": "Prove the knee tolerates five running days at 28 miles.",
-  "coachNote": "This week is the plan document’s opening week, seeded so the ledger isn’t empty. Five running days, all easy, nothing over nine miles, Monday off running as it will be all year.\n\nThe three strength sessions are programmed but deliberately unloaded on paper: the first time you do each lift it is a calibration set. Work up to the rep target at about RPE 7, then log the weight you actually used. Every later block progresses from those numbers rather than a guess.\n\nBefore this becomes a real plan it needs your actual history. Sync Strava, then rebuild the plan so the phases and week targets start from the volume you are genuinely carrying.",
+  "coachNote": "This week is the plan document’s opening week, seeded so the ledger isn’t empty. Five running days, all easy, nothing over nine miles, Monday off running as it will be all year.\n\nThe three strength sessions come from your core program rather than from this week: the same movements will be here next month, loaded a little heavier. The first time you do each lift it is a calibration set — work up to the rep target at about RPE 7 and log what you actually used. Progression takes over from there without anyone having to decide anything.\n\nBefore this becomes a real plan it needs your actual history. Sync Strava, then rebuild the plan so the phases and week targets start from the volume you are genuinely carrying.",
   "adjustments": [],
   "days": [
     {
@@ -23,8 +23,7 @@
           "minutes": 30,
           "intensity": "technique",
           "detail": "Freestyle only. Drills over yardage. No breaststroke kick.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         }
       ]
     },
@@ -39,8 +38,7 @@
           "minutes": 45,
           "intensity": "easy",
           "detail": "Conversational the whole way. If the knee talks, cut it short and say so in the note.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         },
         {
           "sport": "lift",
@@ -49,43 +47,7 @@
           "intensity": "heavy",
           "detail": "Rehab-led. This is the priority session of the week, not an accessory.",
           "optional": false,
-          "exercises": [
-            {
-              "ex": "Spanish squat (band)",
-              "sets": 3,
-              "reps": "45 sec",
-              "loadLb": 0,
-              "note": "Isometric hold, knees bent about 60 degrees. Tendon load, not fatigue."
-            },
-            {
-              "ex": "Trap bar deadlift",
-              "sets": 3,
-              "reps": "5",
-              "loadLb": 0,
-              "note": "Calibration: work up to a weight you could manage 8 reps with, then stop at 5. Log what you used."
-            },
-            {
-              "ex": "Romanian deadlift",
-              "sets": 3,
-              "reps": "8",
-              "loadLb": 0,
-              "note": "Lighter than the trap bar. Hamstring length under load; stop the set when the back rounds."
-            },
-            {
-              "ex": "Standing calf raise",
-              "sets": 3,
-              "reps": "12",
-              "loadLb": 0,
-              "note": "Three seconds down. The calf and Achilles carry the running load."
-            },
-            {
-              "ex": "Copenhagen plank",
-              "sets": 2,
-              "reps": "20 sec each",
-              "loadLb": 0,
-              "note": "Adductors. Bend the bottom knee to shorten the lever if 20 seconds is too long."
-            }
-          ]
+          "programSession": "A"
         }
       ]
     },
@@ -100,8 +62,7 @@
           "minutes": 45,
           "intensity": "easy",
           "detail": "Flat ground. Same effort as Tuesday.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         }
       ]
     },
@@ -116,8 +77,7 @@
           "minutes": 36,
           "intensity": "easy",
           "detail": "Short by design, so the bike can carry the aerobic work after it.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         },
         {
           "sport": "bike",
@@ -125,8 +85,7 @@
           "minutes": 45,
           "intensity": "easy",
           "detail": "85-95 rpm, seated. Saddle high enough that the leg is nearly straight at the bottom.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         },
         {
           "sport": "lift",
@@ -135,43 +94,7 @@
           "intensity": "steady",
           "detail": "Step-downs, split squats, calf work. Quality over load.",
           "optional": false,
-          "exercises": [
-            {
-              "ex": "Step-down",
-              "sets": 3,
-              "reps": "8 each",
-              "loadLb": 0,
-              "note": "Slow and controlled, knee tracking over the middle toes. This is the knee’s main rehab lift."
-            },
-            {
-              "ex": "Split squat",
-              "sets": 3,
-              "reps": "8 each",
-              "loadLb": 0,
-              "note": "Calibration: dumbbells you could do 12 with. Log the weight."
-            },
-            {
-              "ex": "Single-leg calf raise",
-              "sets": 3,
-              "reps": "10 each",
-              "loadLb": 0,
-              "note": "Bodyweight to start. Add load once 10 is comfortable on both sides."
-            },
-            {
-              "ex": "Side plank",
-              "sets": 2,
-              "reps": "30 sec each",
-              "loadLb": 0,
-              "note": "Hips stacked, no sag."
-            },
-            {
-              "ex": "Dead bug",
-              "sets": 2,
-              "reps": "10 each",
-              "loadLb": 0,
-              "note": "Ribs down, lower back flat on the floor."
-            }
-          ]
+          "programSession": "B"
         }
       ]
     },
@@ -185,8 +108,7 @@
           "minutes": 45,
           "intensity": "technique",
           "detail": "Freestyle only.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         },
         {
           "sport": "lift",
@@ -195,43 +117,7 @@
           "intensity": "heavy",
           "detail": "Trap bar or RDL, then upper body. Load the hinge properly.",
           "optional": false,
-          "exercises": [
-            {
-              "ex": "Trap bar deadlift",
-              "sets": 4,
-              "reps": "4",
-              "loadLb": 0,
-              "note": "Heavier than Tuesday. Same calibration logic: log the weight so next week has a number to beat."
-            },
-            {
-              "ex": "Hip thrust",
-              "sets": 3,
-              "reps": "8",
-              "loadLb": 0,
-              "note": "Glute drive, ribs down, no lower-back arch at the top."
-            },
-            {
-              "ex": "Chin-up",
-              "sets": 3,
-              "reps": "5",
-              "loadLb": 0,
-              "note": "Add weight or use a band as needed. Log whichever you did."
-            },
-            {
-              "ex": "Overhead press",
-              "sets": 3,
-              "reps": "6",
-              "loadLb": 0,
-              "note": "Strict, no leg drive."
-            },
-            {
-              "ex": "Pallof press",
-              "sets": 2,
-              "reps": "10 each",
-              "loadLb": 0,
-              "note": "Anti-rotation. Resist the twist rather than producing one."
-            }
-          ]
+          "programSession": "C"
         }
       ]
     },
@@ -246,8 +132,7 @@
           "minutes": 85,
           "intensity": "long",
           "detail": "The week's longest run and its only real demand. Easy pace, flat route.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         }
       ]
     },
@@ -262,8 +147,7 @@
           "minutes": 45,
           "intensity": "easy",
           "detail": "Legs off yesterday.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         },
         {
           "sport": "bike",
@@ -271,12 +155,20 @@
           "minutes": 75,
           "intensity": "easy",
           "detail": "Longest ride of the week. Aerobic load the knee doesn't pay for.",
-          "optional": false,
-          "exercises": []
+          "optional": false
         }
       ]
     }
   ],
   "source": "seed",
-  "generatedAt": "2026-09-07T00:00:00Z"
+  "generatedAt": "2026-09-07T00:00:00Z",
+  "volumes": {
+    "run": 28,
+    "bike": 120,
+    "lift": 3
+  },
+  "sessionTargets": {
+    "swim": 2,
+    "lift": 3
+  }
 }

@@ -111,6 +111,23 @@ CREATE TABLE IF NOT EXISTS sync_state (
   updated_at TEXT NOT NULL
 );
 
+-- The strength program: a small stable set of movements, versioned in-doc.
+CREATE TABLE IF NOT EXISTS lift_program (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  doc        TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Goals are structured and multiple: a volume goal and a race goal can be
+-- live at once, with one marked primary for the confidence number.
+CREATE TABLE IF NOT EXISTS goals (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id         TEXT NOT NULL,
+  doc        TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, id)
+);
+
 CREATE TABLE IF NOT EXISTS coach_runs (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -340,6 +357,43 @@ export function saveFeedback(userId, sessionId, doc) {
     .run(userId, sessionId, doc.date, JSON.stringify(doc), nowIso());
 }
 
+// --- strength program ------------------------------------------------------
+export function getLiftProgram(userId) {
+  return parse(db.prepare('SELECT doc FROM lift_program WHERE user_id = ?').get(userId));
+}
+export function saveLiftProgram(userId, doc) {
+  db.prepare(`INSERT INTO lift_program (user_id, doc, updated_at) VALUES (?, ?, ?)
+              ON CONFLICT(user_id) DO UPDATE SET doc = excluded.doc, updated_at = excluded.updated_at`)
+    .run(userId, JSON.stringify(doc), nowIso());
+}
+
+// --- goals -----------------------------------------------------------------
+export function listGoals(userId) {
+  return db.prepare('SELECT doc FROM goals WHERE user_id = ? ORDER BY id').all(userId).map((r) => parse(r));
+}
+export function getGoal(userId, id) {
+  return parse(db.prepare('SELECT doc FROM goals WHERE user_id = ? AND id = ?').get(userId, id));
+}
+export function saveGoal(userId, goal) {
+  const id = goal.id || newId(6);
+  const doc = { ...goal, id, updatedAt: nowIso() };
+  db.prepare(`INSERT INTO goals (user_id, id, doc, updated_at) VALUES (?, ?, ?, ?)
+              ON CONFLICT(user_id, id) DO UPDATE SET doc = excluded.doc, updated_at = excluded.updated_at`)
+    .run(userId, id, JSON.stringify(doc), nowIso());
+  return doc;
+}
+export function deleteGoal(userId, id) {
+  db.prepare('DELETE FROM goals WHERE user_id = ? AND id = ?').run(userId, id);
+}
+/** Exactly one goal carries the confidence number. */
+export function setPrimaryGoal(userId, id) {
+  const goals = listGoals(userId);
+  for (const g of goals) {
+    const primary = g.id === id;
+    if (Boolean(g.primary) !== primary) saveGoal(userId, { ...g, primary });
+  }
+}
+
 // --- coach audit trail -----------------------------------------------------
 export function logCoachRun(userId, kind, { model, usage, ms, ok, error }) {
   db.prepare(`INSERT INTO coach_runs (id, user_id, kind, model, usage, ms, ok, error, created_at)
@@ -357,6 +411,8 @@ export function exportAll(userId) {
     activities: db.prepare('SELECT doc FROM activities WHERE user_id = ? ORDER BY date DESC').all(userId).map((r) => parse(r)),
     feedback: db.prepare('SELECT doc FROM feedback WHERE user_id = ?').all(userId).map((r) => parse(r)),
     digests: db.prepare('SELECT doc FROM digests WHERE user_id = ? ORDER BY week DESC').all(userId).map((r) => parse(r)),
+    liftProgram: getLiftProgram(userId),
+    goals: listGoals(userId),
     sync: getSyncState(userId),
   };
 }

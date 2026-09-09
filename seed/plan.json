@@ -42,7 +42,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 28,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W38",
@@ -52,7 +61,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 30,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W39",
@@ -62,7 +80,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 33,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W40",
@@ -72,7 +99,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 25,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W41",
@@ -82,7 +118,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 35,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W42",
@@ -92,7 +137,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 37,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W43",
@@ -102,7 +156,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 40,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W44",
@@ -112,7 +175,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 30,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W45",
@@ -122,7 +194,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 42,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W46",
@@ -132,7 +213,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 45,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W47",
@@ -142,7 +232,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 48,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W48",
@@ -152,7 +251,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 36,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W49",
@@ -162,7 +270,16 @@
       "bikeHours": 1.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 50,
+        "bike": 90,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W50",
@@ -172,7 +289,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 50,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W51",
@@ -182,7 +308,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 50,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W52",
@@ -192,7 +327,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 52,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2026-W53",
@@ -202,7 +346,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 40,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W01",
@@ -212,7 +365,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 50,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W02",
@@ -222,7 +384,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 52,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W03",
@@ -232,7 +403,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 52,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W04",
@@ -242,7 +422,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 40,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W05",
@@ -252,7 +441,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 50,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W06",
@@ -262,7 +460,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 52,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W07",
@@ -272,7 +479,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 54,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W08",
@@ -282,7 +498,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 42,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W09",
@@ -292,7 +517,16 @@
       "bikeHours": 3.0,
       "swimSessions": 3,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 52,
+        "bike": 180,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 3,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W10",
@@ -302,7 +536,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 54,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W11",
@@ -312,7 +555,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 56,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W12",
@@ -322,7 +574,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 58,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W13",
@@ -332,7 +593,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 45,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W14",
@@ -342,7 +612,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 58,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W15",
@@ -352,7 +631,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 60,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W16",
@@ -362,7 +650,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 62,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W17",
@@ -372,7 +669,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 48,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W18",
@@ -382,7 +688,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 60,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W19",
@@ -392,7 +707,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 63,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W20",
@@ -402,7 +726,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 65,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W21",
@@ -412,7 +745,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 50,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W22",
@@ -422,7 +764,16 @@
       "bikeHours": 2.5,
       "swimSessions": 2,
       "strengthSessions": 3,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 62,
+        "bike": 150,
+        "lift": 3
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 3
+      }
     },
     {
       "week": "2027-W23",
@@ -432,7 +783,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 64,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W24",
@@ -442,7 +802,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 66,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W25",
@@ -452,7 +821,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 68,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W26",
@@ -462,7 +840,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 52,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W27",
@@ -472,7 +859,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 68,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W28",
@@ -482,7 +878,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 71,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W29",
@@ -492,7 +897,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 74,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W30",
@@ -502,7 +916,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 56,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W31",
@@ -512,7 +935,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 74,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W32",
@@ -522,7 +954,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 78,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W33",
@@ -532,7 +973,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": false
+      "deload": false,
+      "volumes": {
+        "run": 60,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W34",
@@ -542,7 +992,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 45,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     },
     {
       "week": "2027-W35",
@@ -552,7 +1011,16 @@
       "bikeHours": 1.0,
       "swimSessions": 2,
       "strengthSessions": 2,
-      "deload": true
+      "deload": true,
+      "volumes": {
+        "run": 30,
+        "bike": 60,
+        "lift": 2
+      },
+      "sessionTargets": {
+        "swim": 2,
+        "lift": 2
+      }
     }
   ],
   "source": "seed",

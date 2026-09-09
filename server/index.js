@@ -6,15 +6,27 @@ import { config, encrypt } from './config.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
 import { stravaRouter, syncUser } from './strava.js';
 import {
-  buildMacrocycle, claudeStatus, DEFAULT_SETTINGS, planWeek, reviewDigest,
+  buildMacrocycle, claudeStatus, DEFAULT_SETTINGS, planWeek, profileFor,
+  reviewDigest, reviewProgram,
 } from './coach.js';
 import {
-  activityCount, deleteActivity, exportAll, getActivities, getActivity, getConnection,
-  getDigests, getFeedback, getPlan, getSettings, getSyncState, getWeek, getWeeks, newId,
-  pruneExpired, saveActivity, saveFeedback, saveSettings, saveUserKey, saveDigest,
+  activityCount, deleteActivity, deleteGoal, exportAll, getActivities, getActivity,
+  getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState, getWeek,
+  getWeeks, listGoals, newId, pruneExpired, saveActivity, saveFeedback, saveGoal,
+  saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
 } from './db.js';
+import {
+  applyProgramChange, ensureProgram, liftHistory, offProgramMovements,
+  prescribeSession, strengthProgress,
+} from './program.js';
+import { fitnessSnapshot } from './fitness.js';
+import { hasBlocking } from './guardrails.js';
 import { seedUser } from './seed.js';
-import { daysBetween, isoWeek, mondayOf, parseYmd, thisWeek, weekAdd, ymd } from '../public/lib/dates.js';
+import { isStrength, sportKey } from '../public/lib/sports.js';
+import { movementId } from '../public/lib/movements.js';
+import {
+  daysBetween, isoWeek, mondayOf, parseYmd, thisWeek, weekAdd, ymd,
+} from '../public/lib/dates.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -38,7 +50,7 @@ app.use(attachUser);
 app.use('/auth', authRouter);
 app.use('/auth/strava', stravaRouter);
 
-/** The exercises planned for the lift session on this date, if any. */
+/** The exercises planned for the strength session on this date, if any. */
 function prescriptionFor(userId, session) {
   const wkKey = isoWeek(parseYmd(session.date));
   const wk = getWeek(userId, wkKey);
@@ -46,32 +58,28 @@ function prescriptionFor(userId, session) {
   const idx = daysBetween(ymd(mondayOf(wkKey)), session.date);
   const day = wk.days[idx];
   if (!day?.sessions) return [];
-  const strength = (s) => ['lift', 'strength', 'mobility'].includes(s.sport);
-  const match = day.sessions.find((s) => strength(s) && s.exercises?.length);
+  const match = day.sessions.find((s) => isStrength(s.sport) && s.exercises?.length);
   return match?.exercises || [];
 }
 
 const api = express.Router();
 api.use(requireUser);
 // Every authenticated request runs through seeding, so a new account always
-// has a goal, plan and week in place whichever endpoint it reaches first.
+// has a goal, program, plan and week in place whichever endpoint it reaches.
 api.use((req, _res, next) => {
   seedUser(req.user.id);
   next();
 });
 
-/** Everything the front end renders, in one request. */
+/** Everything the shell and most pages need, in one request. */
 api.get('/data', (req, res) => {
   const userId = req.user.id;
-
-  const weeksBack = Math.min(52, Math.max(4, Number(req.query.weeks) || 14));
+  const weeksBack = Math.min(52, Math.max(4, Number(req.query.weeks) || 16));
   const week = thisWeek();
   const fromWeek = weekAdd(week, -weeksBack);
   const fromDate = ymd(mondayOf(fromWeek));
 
-  const settings = { ...DEFAULT_SETTINGS, ...(getSettings(userId) || {}) };
-  delete settings._key;
-
+  const { settings, goals } = profileFor(userId);
   const strava = getConnection(userId, 'strava');
   const feedback = {};
   for (const f of getFeedback(userId, fromDate)) feedback[f.sessionId] = f;
@@ -85,11 +93,13 @@ api.get('/data', (req, res) => {
     week,
     user: { id: req.user.id, name: req.user.name, email: req.user.email, picture: req.user.picture },
     settings,
+    goals,
     plan: getPlan(userId),
     weeks,
-    sessions: getActivities(userId, fromDate, 600),
+    sessions: getActivities(userId, fromDate, 700),
     feedback,
     digests,
+    program: ensureProgram(userId),
     sync: getSyncState(userId),
     totals: { activities: activityCount(userId) },
     connections: {
@@ -97,10 +107,20 @@ api.get('/data', (req, res) => {
         ? { connected: true, athlete: strava.meta?.athlete || null, scope: strava.scope }
         : { connected: false, configured: config.strava.enabled },
     },
-    claude: { ...claudeStatus(userId), allowUserKeys: config.anthropic.allowUserKeys, hasUserKey: Boolean(getSettings(userId)?._hasKey) },
+    claude: {
+      ...claudeStatus(userId),
+      allowUserKeys: config.anthropic.allowUserKeys,
+      hasUserKey: Boolean(getSettings(userId)?._hasKey),
+    },
   });
 });
 
+/** The derived fitness layer. Separate because it costs a full-history pass. */
+api.get('/fitness', (req, res) => {
+  res.json(fitnessSnapshot(req.user.id, { goals: listGoals(req.user.id) }));
+});
+
+// --- settings and goals ----------------------------------------------------
 api.put('/settings', (req, res) => {
   const b = req.body || {};
   const current = getSettings(req.user.id) || {};
@@ -113,10 +133,43 @@ api.put('/settings', (req, res) => {
     targetDate: String(b.targetDate ?? '').slice(0, 10),
     keep: String(b.keep ?? '').slice(0, 500),
     limits: String(b.limits ?? '').slice(0, 2000),
+    restDays: Array.isArray(b.restDays) ? b.restDays.slice(0, 7).map(String) : (current.restDays || []),
     source: 'user',
     updatedAt: new Date().toISOString(),
   });
   res.json({ ok: true });
+});
+
+api.get('/goals', (req, res) => res.json({ goals: listGoals(req.user.id) }));
+
+api.put('/goals/:id', (req, res) => {
+  const b = req.body || {};
+  const metric = String(b.metric || 'weeklyDistance');
+  const goal = saveGoal(req.user.id, {
+    id: req.params.id === 'new' ? newId(6) : req.params.id,
+    sport: sportKey(b.sport || 'run'),
+    metric,
+    target: Number(b.target) || 0,
+    unit: String(b.unit || '').slice(0, 12),
+    distanceMi: Number(b.distanceMi) || null,
+    byDate: /^\d{4}-\d{2}-\d{2}$/.test(String(b.byDate)) ? b.byDate : '',
+    label: String(b.label || '').slice(0, 160),
+    note: String(b.note || '').slice(0, 600),
+    primary: Boolean(b.primary),
+    source: 'user',
+  });
+  if (goal.primary) setPrimaryGoal(req.user.id, goal.id);
+  res.json({ ok: true, goal, goals: listGoals(req.user.id) });
+});
+
+api.delete('/goals/:id', (req, res) => {
+  deleteGoal(req.user.id, req.params.id);
+  res.json({ ok: true, goals: listGoals(req.user.id) });
+});
+
+api.post('/goals/:id/primary', (req, res) => {
+  setPrimaryGoal(req.user.id, req.params.id);
+  res.json({ ok: true, goals: listGoals(req.user.id) });
 });
 
 api.put('/claude-key', (req, res) => {
@@ -127,10 +180,36 @@ api.put('/claude-key', (req, res) => {
   res.json({ ok: true, hasUserKey: Boolean(key) });
 });
 
+// --- strength program ------------------------------------------------------
+api.get('/program', (req, res) => {
+  const userId = req.user.id;
+  const program = ensureProgram(userId);
+  const history = liftHistory(userId);
+  res.json({
+    program,
+    offProgram: offProgramMovements(userId, program),
+    progress: strengthProgress(userId),
+    prescriptions: (program.sessions || []).map((s) => prescribeSession(program, s.id, history)),
+  });
+});
+
+api.put('/program', (req, res) => {
+  const result = applyProgramChange(req.user.id, req.body?.program || {}, {
+    by: 'user',
+    reason: String(req.body?.reason || 'edited by hand'),
+    today: ymd(new Date()),
+  });
+  res.status(result.ok ? 200 : 422).json(result);
+});
+
+api.get('/strength', (req, res) => {
+  res.json({ progress: strengthProgress(req.user.id) });
+});
+
 // --- sessions and feedback -------------------------------------------------
 api.post('/sessions', (req, res) => {
   const b = req.body || {};
-  const sport = String(b.sport || 'run');
+  const sport = sportKey(b.sport || 'run');
   const dist = Number(b.dist) || 0;
   const min = Number(b.minutes) || 0;
   const doc = {
@@ -150,35 +229,54 @@ api.post('/sessions', (req, res) => {
     doc.miles = dist;
     if (min) doc.paceSecPerMi = (min * 60) / dist;
   }
+  if (Array.isArray(b.lifts)) doc.lifts = normalizeLifts(b.lifts);
   for (const k of Object.keys(doc)) if (doc[k] == null) delete doc[k];
   saveActivity(req.user.id, doc);
   res.json({ ok: true, session: doc });
 });
 
+/** Per-set logging: reps, weight and optional RPE for every set. */
+function normalizeLifts(list) {
+  return (list || [])
+    .filter((l) => l && String(l.ex || '').trim())
+    .slice(0, 24)
+    .map((l) => {
+      const sets = (Array.isArray(l.sets) ? l.sets : [])
+        .slice(0, 20)
+        .map((s) => ({
+          reps: Number(s.reps) || 0,
+          lb: Number(s.lb) || 0,
+          rpe: Number(s.rpe) > 0 ? Math.min(10, Number(s.rpe)) : null,
+        }))
+        .filter((s) => s.reps > 0 || s.lb > 0);
+      return {
+        exId: String(l.exId || movementId(l.ex)).slice(0, 60),
+        ex: String(l.ex).trim().slice(0, 80),
+        sets,
+        note: String(l.note || '').slice(0, 200) || undefined,
+      };
+    })
+    .filter((l) => l.sets.length);
+}
+
 api.patch('/sessions/:id', (req, res) => {
   const existing = getActivity(req.user.id, req.params.id);
   if (!existing) return res.status(404).json({ error: 'not_found' });
-  const lifts = Array.isArray(req.body?.lifts)
-    ? req.body.lifts
-      .filter((l) => l && String(l.ex || '').trim())
-      .slice(0, 20)
-      .map((l) => ({
-        ex: String(l.ex).trim().slice(0, 80),
-        sets: Number(l.sets) || null,
-        reps: Number(l.reps) || null,
-        lb: Number(l.lb) || null,
-      }))
-    : null;
   const doc = { ...existing };
-  if (lifts) {
-    doc.lifts = lifts;
-    // Snapshot what was prescribed for this session, so later weeks can be
-    // progressed from prescribed-vs-actual without re-reading old plans.
-    const prescribed = prescriptionFor(req.user.id, existing);
-    if (prescribed.length) doc.prescribed = prescribed;
-  } else {
-    delete doc.lifts;
+
+  if (Array.isArray(req.body?.lifts)) {
+    const lifts = normalizeLifts(req.body.lifts);
+    if (lifts.length) {
+      doc.lifts = lifts;
+      // Snapshot what was prescribed, so progression can compare later without
+      // re-reading old plans.
+      const prescribed = prescriptionFor(req.user.id, existing);
+      if (prescribed.length) doc.prescribed = prescribed;
+    } else {
+      delete doc.lifts;
+    }
   }
+  if (req.body?.name != null) doc.name = String(req.body.name).slice(0, 160);
   saveActivity(req.user.id, doc);
   res.json({ ok: true, session: doc });
 });
@@ -252,7 +350,9 @@ api.post('/coach/plan-week', async (req, res) => {
   const week = String(req.body?.week || thisWeek());
   if (!/^\d{4}-W\d{2}$/.test(week)) return res.status(400).json({ error: 'bad_week' });
   try {
-    res.json({ ok: true, week: await planWeek(req.user.id, week) });
+    const result = await planWeek(req.user.id, week, { force: Boolean(req.body?.force) });
+    // A plan that trips a blocking guardrail is reported, not stored.
+    res.status(result.ok ? 200 : 422).json({ ok: result.ok, week: result.week, violations: result.violations });
   } catch (err) { coachError(res, err); }
 });
 
@@ -270,6 +370,13 @@ api.post('/coach/build-plan', async (req, res) => {
   } catch (err) { coachError(res, err); }
 });
 
+api.post('/coach/program-review', async (req, res) => {
+  try {
+    const result = await reviewProgram(req.user.id);
+    res.status(result.ok ? 200 : 422).json(result);
+  } catch (err) { coachError(res, err); }
+});
+
 api.get('/export', (req, res) => {
   const data = exportAll(req.user.id);
   if (data.settings) delete data.settings._key;
@@ -281,6 +388,7 @@ api.get('/export', (req, res) => {
 app.use('/api', api);
 
 app.use(express.static(config.publicDir, { extensions: ['html'], maxAge: 0 }));
+// Client-side routing: every unknown path is a page in the app shell.
 app.get('*splat', (_req, res) => res.sendFile(path.join(config.publicDir, 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
@@ -320,7 +428,7 @@ function reportPortConflict() {
   console.error('  Stop it, then start again:\n');
   console.error(`    Get-NetTCPConnection -LocalPort ${config.port} -State Listen |`);
   console.error('      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n');
-  console.error(`  Or run this one somewhere else:  PORT=4318 npm start\n`);
+  console.error('  Or run this one somewhere else:  PORT=4318 npm start\n');
 }
 
 if (await portBusy(config.host, config.port)) {
@@ -334,11 +442,11 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`  sign-in    ${config.google.enabled ? 'Google' : config.devLoginAllowed ? 'local (no Google credentials set)' : 'NOT CONFIGURED'}`);
   console.log(`  strava     ${config.strava.enabled ? 'configured' : 'not configured — add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to .env'}`);
   const claude = claudeStatus('');
-  console.log(`  claude     ${claude.available ? `${claude.model} via ${claude.source}` : 'no credentials found'}`);
+  console.log(`  claude     ${claude.available ? `${claude.model} via ${claude.source}` : 'no credentials found (offline coaching: npm run coach)'}`);
   console.log(`  database   ${config.dbPath}\n`);
   if (config.strava.enabled) {
     console.log('  Strava credentials are loaded. Each account still has to authorize:');
-    console.log('  open the site, go to Setup, and click Connect Strava.\n');
+    console.log('  open the site, go to Settings, and click Connect Strava.\n');
   }
 });
 

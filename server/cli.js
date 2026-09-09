@@ -17,9 +17,9 @@ import fs from 'node:fs';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { db } from './db.js';
 import {
-  RULES, MacrocycleSchema, ReviewSchema, WeekPlanSchema,
-  applyMacrocycle, applyReview, applyWeek, buildContext,
-  macroPrompt, reviewPrompt, weekPrompt,
+  RULES, MacrocycleSchema, ProgramReviewSchema, ReviewSchema, WeekPlanSchema,
+  applyMacrocycle, applyProgramReview, applyReview, applyWeek, buildContext,
+  macroPrompt, programPrompt, reviewPrompt, weekPrompt,
 } from './coach.js';
 import { saveDigest } from './db.js';
 import { thisWeek } from '../public/lib/dates.js';
@@ -28,6 +28,7 @@ const SCHEMAS = {
   'plan-week': WeekPlanSchema,
   review: ReviewSchema,
   'build-plan': MacrocycleSchema,
+  'program-review': ProgramReviewSchema,
 };
 
 function die(msg) {
@@ -71,15 +72,25 @@ function readJson(path) {
   return null;
 }
 
+const NEWLINE = String.fromCharCode(10);
+
+function reportViolations(violations) {
+  for (const v of violations || []) {
+    process.stdout.write(`  [${v.severity}] ${v.code}: ${v.message}` + NEWLINE);
+  }
+}
+
 /**
- * Validate against the same schema the API path enforces. Missing `exercises`
- * arrays are filled in first — they are required in the schema but tedious to
- * type by hand on every run and swim.
+ * Validate against the same schema the API path enforces. A couple of fields
+ * are filled in first — required by the schema but tedious to type by hand on
+ * every run and swim.
  */
 function validate(kind, data) {
   if (kind === 'plan-week') {
     for (const day of data.days || []) {
-      for (const s of day.sessions || []) if (!Array.isArray(s.exercises)) s.exercises = [];
+      for (const s of day.sessions || []) {
+        if (typeof s.programSession !== 'string') s.programSession = '';
+      }
     }
   }
   const result = SCHEMAS[kind].safeParse(data);
@@ -115,7 +126,8 @@ switch (command) {
       if (!text) die('Pass the digest text, or a file: prompt review "<text>" | prompt review @digest.txt');
       built = reviewPrompt(userId, text.startsWith('@') ? fs.readFileSync(text.slice(1), 'utf8') : text);
     } else if (kind === 'build-plan') built = macroPrompt(userId);
-    else die(`Unknown prompt kind "${kind}". Use plan-week, review or build-plan.`);
+    else if (kind === 'program-review') built = programPrompt(userId);
+    else die(`Unknown prompt kind "${kind}". Use plan-week, review, build-plan or program-review.`);
 
     process.stdout.write(`=== COACHING RULES ===\n${RULES}\n\n${built.task}\n\n`);
     process.stdout.write(`=== REPLY WITH JSON MATCHING THIS SCHEMA ===\n${jsonShape(kind === 'plan-week' ? 'plan-week' : kind)}\n`);
@@ -132,11 +144,18 @@ switch (command) {
       const week = positional[1];
       if (!/^\d{4}-W\d{2}$/.test(String(week))) die('Usage: apply week <2026-W38> <plan.json>');
       const data = validate('plan-week', readJson(positional[2]));
-      const doc = applyWeek(userId, week, data, 'claude-code');
+      const result = applyWeek(userId, week, data, 'claude-code', { force: args.includes('--force') });
+      const doc = result.week;
       const runs = doc.days.flatMap((d) => d.sessions).filter((s) => s.sport === 'run');
       const miles = runs.reduce((n, s) => n + (s.miles || 0), 0);
       const lifts = doc.days.flatMap((d) => d.sessions).filter((s) => s.exercises?.length);
-      process.stdout.write(`\n  Saved ${week}: ${doc.verdict}, ${doc.targets.runMiles ?? '?'} mi target, `
+      reportViolations(result.violations);
+      if (!result.ok) {
+        process.stderr.write(NEWLINE + '  NOT SAVED - a guardrail blocked it. Fix the plan, or re-run with'
+          + ' --force if you have decided the guardrail is wrong here.' + NEWLINE + NEWLINE);
+        process.exit(1);
+      }
+      process.stdout.write(`\n  Saved ${week}: ${doc.verdict}, ${doc.volumes?.run ?? '?'} mi run target, `
         + `${runs.length} runs totalling ${miles.toFixed(1)} mi, ${lifts.length} programmed strength sessions.\n\n`);
     } else if (what === 'review') {
       const textPath = positional[1];
@@ -152,6 +171,20 @@ switch (command) {
       const doc = applyMacrocycle(userId, data, 'claude-code');
       process.stdout.write(`\n  Saved the macrocycle: ${doc.phases.length} phases, `
         + `${doc.weekTargets.length} weeks${doc.targetDate ? `, target ${doc.targetDate}` : ''}.\n\n`);
+    } else if (what === 'program') {
+      const data = validate('program-review', readJson(positional[1]));
+      const result = applyProgramReview(userId, data, { by: 'claude-code' });
+      reportViolations(result.violations);
+      if (!result.ok) {
+        process.stderr.write(NEWLINE + '  NOT SAVED - a program guardrail blocked it.' + NEWLINE + NEWLINE);
+        process.exit(1);
+      }
+      process.stdout.write(`\n  Program is now v${result.program.version}. `
+        + `${result.decisions.length} verdict(s) on off-program movements.\n`);
+      for (const d of result.decisions) {
+        process.stdout.write(`    ${d.name}: ${d.decision} - ${d.reason}\n`);
+      }
+      process.stdout.write('\n');
     } else if (what === 'digest') {
       const textPath = positional[1];
       const text = textPath && fs.existsSync(textPath) ? fs.readFileSync(textPath, 'utf8').trim() : textPath;
@@ -159,7 +192,7 @@ switch (command) {
       saveDigest(userId, thisWeek(), { week: thisWeek(), text, submittedAt: new Date().toISOString() });
       process.stdout.write(`\n  Stored the digest for ${thisWeek()}.\n\n`);
     } else {
-      die('Usage: apply <week|review|plan|digest> ...');
+      die('Usage: apply <week|review|plan|program|digest> ...');
     }
     break;
   }
@@ -172,10 +205,12 @@ switch (command) {
     npm run coach -- prompt plan-week [2026-W38]
     npm run coach -- prompt review "<digest text>" | @digest.txt
     npm run coach -- prompt build-plan
-    npm run coach -- schema plan-week | review | build-plan
+    npm run coach -- prompt program-review
+    npm run coach -- schema plan-week | review | build-plan | program-review
     npm run coach -- apply week <2026-W38> <plan.json>
     npm run coach -- apply review <digest.txt> <review.json>
     npm run coach -- apply plan <macro.json>
+    npm run coach -- apply program <program.json>
     npm run coach -- apply digest <digest.txt>
 
   Add --user=<id> when the database holds more than one account.
