@@ -27,10 +27,29 @@ export function plannedVolumes(weekDoc) {
         : info.metric === 'duration'
           ? (s.minutes || 0)
           : key === 'swim' ? (s.yards || s.miles || 0) : (s.miles || 0);
-      out[key] = (out[key] || 0) + add;
+      if (add > 0) out[key] = (out[key] || 0) + add;
     }
   }
   return out;
+}
+
+/** A stable signature for a violation, so two checks can be compared. */
+export const violationKey = (v) => `${v.code}:${v.detail?.sport ?? ''}`;
+
+/**
+ * Only what a change introduced.
+ *
+ * Re-running every rule after an edit reports the state of the week, not the
+ * effect of the edit — a return-from-layoff week is a big jump whether or not
+ * you moved the swim. Severity is capped at a warning because a hand edit is
+ * never refused: reporting "block" for something that was saved anyway is a
+ * lie.
+ */
+export function newViolations(before, after) {
+  const had = new Set((before || []).map(violationKey));
+  return (after || [])
+    .filter((v) => !had.has(violationKey(v)))
+    .map((v) => (v.severity === 'block' ? { ...v, severity: 'warn' } : v));
 }
 
 /**
@@ -206,9 +225,12 @@ export function checkProgramChange(current, proposed, context = {}) {
     }
     const weeks = weeksSince(m.addedAt, context.today);
     if (weeks != null && weeks < PROGRAM_LIMITS.minWeeksBeforeCoreRemoval) {
+      const age = weeks < 1
+        ? 'has been in the program less than a week'
+        : `has only been in the program ${weeks} week${weeks === 1 ? '' : 's'}`;
       out.push(violation('removed-too-soon', 'warn',
-        `"${m.name}" has only been in the program ${weeks} week${weeks === 1 ? '' : 's'}. `
-        + `Tendon adaptation takes longer than that; ${PROGRAM_LIMITS.minWeeksBeforeCoreRemoval} weeks is the minimum before judging it.`,
+        `"${m.name}" ${age}. Tendon adaptation takes longer than that; `
+        + `${PROGRAM_LIMITS.minWeeksBeforeCoreRemoval} weeks is the minimum before judging whether it works.`,
         { exId: id, weeks }));
     }
   }
@@ -297,8 +319,10 @@ function weeksSince(iso, today) {
   if (!iso) return null;
   const then = Date.parse(iso);
   if (!Number.isFinite(then)) return null;
-  const now = today ? Date.parse(today) : Date.now();
-  return Math.floor((now - then) / (7 * 86400000));
+  // `today` is a date and `addedAt` a timestamp, so a movement added earlier
+  // the same day lands a few hours in the "future". Never report negative age.
+  const now = today ? Date.parse(`${String(today).slice(0, 10)}T23:59:59Z`) : Date.now();
+  return Math.max(0, Math.floor((now - then) / (7 * 86400000)));
 }
 
 const round = (n) => (Math.abs(n) >= 100 ? Math.round(n) : Math.round(n * 10) / 10);

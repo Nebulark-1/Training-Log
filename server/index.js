@@ -6,8 +6,8 @@ import { config, encrypt } from './config.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
 import { stravaRouter, syncUser } from './strava.js';
 import {
-  buildMacrocycle, claudeStatus, DEFAULT_SETTINGS, planWeek, profileFor,
-  reviewDigest, reviewProgram,
+  applyWeekEdit, buildMacrocycle, claudeStatus, DEFAULT_SETTINGS, planWeek,
+  profileFor, reviewDigest, reviewProgram,
 } from './coach.js';
 import {
   activityCount, deleteActivity, deleteGoal, exportAll, getActivities, getActivity,
@@ -324,6 +324,24 @@ api.put('/digests/:week', (req, res) => {
     ...(existing?.review ? { review: existing.review } : {}),
   });
   res.json({ ok: true });
+});
+
+/**
+ * Rearrange a planned week. The client sends the seven days it wants; the
+ * server re-resolves strength prescriptions, recomputes volumes and re-runs the
+ * guardrails as advice rather than a veto.
+ */
+api.patch('/weeks/:week', (req, res) => {
+  const week = String(req.params.week);
+  if (!/^\d{4}-W\d{2}$/.test(week)) return res.status(400).json({ error: 'bad_week' });
+  if (!Array.isArray(req.body?.days) || req.body.days.length !== 7) {
+    return res.status(400).json({ error: 'days must be an array of seven' });
+  }
+  try {
+    res.json(applyWeekEdit(req.user.id, week, req.body.days, { note: req.body.note }));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.code || 'edit_failed', message: err.message });
+  }
 });
 
 // --- strava ----------------------------------------------------------------

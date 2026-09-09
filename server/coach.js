@@ -19,14 +19,14 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { config, decrypt } from './config.js';
 import {
-  getActivities, getDigests, getFeedback, getPlan, getSettings, getWeeks,
+  getActivities, getDigests, getFeedback, getPlan, getSettings, getWeek, getWeeks,
   listGoals, logCoachRun, savePlan, saveWeek, saveDigest,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, movementIndex,
   offProgramMovements, prescribeSession, strengthProgress,
 } from './program.js';
-import { checkWeekPlan, hasBlocking } from './guardrails.js';
+import { checkWeekPlan, hasBlocking, newViolations, plannedVolumes } from './guardrails.js';
 import { fitnessSnapshot } from './fitness.js';
 import { CATALOG, PATTERNS, movementId } from '../public/lib/movements.js';
 import {
@@ -592,34 +592,7 @@ export function applyWeek(userId, weekKey, out, source = 'claude', { force = fal
     return {
       dow: DOW[i],
       date,
-      sessions: (src.sessions || []).map((s) => {
-        const sport = sportKey(s.sport);
-        const session = {
-          sport,
-          title: String(s.title || ''),
-          miles: orNull(s.miles),
-          minutes: orNull(s.minutes),
-          intensity: s.intensity ? String(s.intensity) : null,
-          detail: s.detail ? String(s.detail) : null,
-          optional: Boolean(s.optional),
-        };
-        if (sport === 'swim' && session.miles && session.miles > 100) {
-          // Swims come back in yards; keep them there.
-          session.yards = session.miles;
-          session.miles = null;
-        }
-        if (isStrength(sport)) {
-          const wanted = String(s.programSession || '').trim().toUpperCase();
-          const resolved = prescribeSession(program, wanted, history)
-            || prescribeSession(program, (program.sessions || [])[0]?.id, history);
-          if (resolved) {
-            session.programSession = resolved.programSession;
-            session.title = session.title || resolved.name;
-            session.exercises = resolved.exercises;
-          }
-        }
-        return session;
-      }),
+      sessions: (src.sessions || []).map((s) => normalizeSession(s, program, history)),
     };
   });
 
@@ -681,6 +654,93 @@ function weekContext(userId, weekKey) {
     buildStreak++;
   }
   return { settings, recentPain, restDays: settings.restDays || [], buildStreak, today: todayYmd() };
+}
+
+/**
+ * Normalize one planned session, wherever it came from — the model, or the
+ * athlete dragging it to another day. Strength sessions always have their
+ * exercises re-resolved from the program, so a moved lift keeps the right
+ * movements and the current loads.
+ */
+function normalizeSession(raw, program, history) {
+  const sport = sportKey(raw.sport);
+  const session = {
+    sport,
+    title: String(raw.title || '').slice(0, 120),
+    miles: orNull(raw.miles),
+    yards: orNull(raw.yards),
+    minutes: orNull(raw.minutes),
+    intensity: raw.intensity ? String(raw.intensity).slice(0, 40) : null,
+    detail: raw.detail ? String(raw.detail).slice(0, 400) : null,
+    optional: Boolean(raw.optional),
+  };
+  if (sport === 'swim' && session.miles && session.miles > 100) {
+    session.yards = session.miles;
+    session.miles = null;
+  }
+  if (isStrength(sport)) {
+    const wanted = String(raw.programSession || '').trim().toUpperCase();
+    const resolved = prescribeSession(program, wanted, history)
+      || prescribeSession(program, (program.sessions || [])[0]?.id, history);
+    if (resolved) {
+      session.programSession = resolved.programSession;
+      session.title = session.title || resolved.name;
+      session.exercises = resolved.exercises;
+    }
+  }
+  for (const k of Object.keys(session)) if (session[k] == null) delete session[k];
+  return session;
+}
+
+/**
+ * Save a week the athlete rearranged by hand.
+ *
+ * Guardrails still run and their findings are attached, but an edit is never
+ * refused: when to swim is the athlete's schedule, not the coach's call. The
+ * warnings are there so a rearrangement that quietly turns into a 40% jump
+ * does not go unremarked.
+ */
+export function applyWeekEdit(userId, weekKey, days, { note = '' } = {}) {
+  const existing = getWeek(userId, weekKey);
+  if (!existing) {
+    throw Object.assign(new Error(`No plan stored for ${weekKey} yet.`), { code: 'no_week', status: 404 });
+  }
+  const program = ensureProgram(userId);
+  const history = liftHistory(userId);
+  const dates = weekDates(weekKey);
+
+  const normalized = dates.map((date, i) => ({
+    dow: DOW[i],
+    date,
+    sessions: (days?.[i]?.sessions || []).slice(0, 6).map((s) => normalizeSession(s, program, history)),
+  }));
+
+  const volumes = plannedVolumes({ days: normalized });
+  const doc = {
+    ...existing,
+    week: weekKey,
+    days: normalized,
+    volumes,
+    targets: legacyTargets(volumes),
+    // A hand-edited week is never re-seeded out from under the athlete.
+    source: existing.source === 'seed' ? 'user' : existing.source,
+    editedAt: new Date().toISOString(),
+    edits: [...(existing.edits || []), { at: new Date().toISOString(), note: String(note || '').slice(0, 200) }].slice(-20),
+  };
+
+  // What did this edit change? Re-running every rule would report the state of
+  // the week rather than the effect of the edit.
+  const weekPast = weekHistory(userId, weekKey);
+  const context = weekContext(userId, weekKey);
+  const before = checkWeekPlan(existing, weekPast, context);
+  const after = checkWeekPlan(doc, weekPast, context);
+  const introduced = newViolations(before, after);
+
+  // Findings that predate the edit stay attached, so the week page keeps
+  // showing them; they are just not blamed on the rearrangement.
+  doc.violations = after;
+  saveWeek(userId, weekKey, doc);
+  return { ok: true, week: doc, violations: introduced, standing: before };
 }
 
 export async function planWeek(userId, weekKey, { force = false } = {}) {

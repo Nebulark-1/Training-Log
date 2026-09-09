@@ -704,3 +704,44 @@ section.digest label{
   .meter{border-right:0; border-bottom:1px solid var(--line2)}
   .voltile{border-right:0; border-bottom:1px solid var(--line2)}
 }
+
+
+/* ---- editing a planned week --------------------------------------------- */
+.day.editing{align-items:start}
+.day.editing .day-plan{grid-column:2 / -1}
+.editrows{display:flex; flex-direction:column; gap:4px; width:100%}
+.editrow{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:3px 0; border-bottom:1px dotted var(--line);
+}
+.editrow:last-child{border-bottom:0}
+.editrow .pl{flex:1; min-width:140px}
+.editrow button.link{font-size:13.5px}
+.editrow.add{padding-top:6px}
+.mutlink{color:var(--mut)!important}
+button.danger{border-color:var(--flag); color:var(--flag)}
+button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)}
+
+.movegrid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px}
+.movegrid button{
+  display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px;
+  font-size:15px; line-height:1.2;
+}
+.movegrid button span{font-size:11.5px; color:var(--mut); text-transform:uppercase; letter-spacing:.08em}
+.movegrid button:disabled{opacity:.35}
+.swaplist{display:flex; flex-direction:column; gap:5px}
+.swapbtn{text-align:left; font-size:15px; padding:7px 11px}
+
+/* ---- editing the program ------------------------------------------------ */
+.m-act{white-space:nowrap; width:120px; text-align:right}
+.m-act button.link{font-size:13.5px; margin-left:10px}
+.ps-foot{
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:8px 0 0; font-family:'Barlow Condensed',sans-serif; font-size:14px;
+}
+.scale [data-val="core"],.scale [data-val="trial"]{flex:1 1 auto; min-width:0; font-size:14.5px}
+
+@media (max-width:720px){
+  .movegrid{grid-template-columns:repeat(4,1fr)}
+  .m-act{width:auto}
+}

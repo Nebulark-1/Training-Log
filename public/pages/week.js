@@ -1,10 +1,12 @@
 // This week — the seven days, against what was planned.
 import { setDay } from './today.js';
+import { clearDay, openSessionEdit, openSessionMove } from '../components/planedit.js';
 import { SPORTS, ENDURANCE_SPORTS, formatVolume, isStrength, sportKey } from '../lib/sports.js';
 import { DOW, MON, isoWeek, mondayOf, weekAdd, weekDates, ymd } from '../lib/dates.js';
 import { esc, hm, mmss, n0, n1, pageHead, violationList } from '../lib/ui.js';
 
 let weekOffset = 0;
+let editing = false;
 const activeWeek = (ctx) => weekAdd(ctx.data.week, weekOffset);
 
 function volumes(ctx, weekKey) {
@@ -65,10 +67,22 @@ export default {
       const isToday = date === ctx.data.today;
       const past = date < ctx.data.today;
 
-      const plan = planned.length
-        ? planned.map((ps) => `<span class="pl ${esc(sportKey(ps.sport))}"><s></s>${esc(ps.title || SPORTS[sportKey(ps.sport)]?.label)}`
-          + `${ps.optional ? ' <em>opt</em>' : ''}</span>`).join('')
-        : `<span class="pl"><em>${wk ? 'off' : '—'}</em></span>`;
+      const chip = (ps) => `<span class="pl ${esc(sportKey(ps.sport))}"><s></s>`
+        + `${esc(ps.title || SPORTS[sportKey(ps.sport)]?.label)}${ps.optional ? ' <em>opt</em>' : ''}</span>`;
+
+      const plan = editing
+        ? `<div class="editrows">${planned.map((ps, si) => '<div class="editrow">'
+          + chip(ps)
+          + `<button class="link" data-move="${i}:${si}">Move</button>`
+          + `<button class="link" data-editsession="${i}:${si}">Edit</button>`
+          + '</div>').join('')
+          }<div class="editrow add">`
+          + `<button class="link" data-addsession="${i}">+ Add a session</button>`
+          + (planned.length ? `<button class="link mutlink" data-clearday="${i}">Clear the day</button>` : '')
+          + '</div></div>'
+        : planned.length
+          ? planned.map(chip).join('')
+          : `<span class="pl"><em>${wk ? 'off' : '—'}</em></span>`;
 
       const done = acts.length
         ? acts.map((s) => {
@@ -91,8 +105,10 @@ export default {
         return `<span class="fbdot ${f ? (f.pain ? 'pain' : 'has') : ''}" title="${esc(title)}"></span>`;
       }).join('');
 
-      days += `<div class="day${isToday ? ' is-today' : ''}${past ? ' past' : ''}" data-goday="${date}"`
-        + ` role="button" tabindex="0" aria-label="Open ${DOW[i]} ${MON[d.getMonth()]} ${d.getDate()}">`
+      days += `<div class="day${isToday ? ' is-today' : ''}${past ? ' past' : ''}${editing ? ' editing' : ''}"`
+        + (editing ? '' : ` data-goday="${date}" role="button" tabindex="0"`
+          + ` aria-label="Open ${DOW[i]} ${MON[d.getMonth()]} ${d.getDate()}"`)
+        + '>'
         + `<div class="day-name"><b>${DOW[i]}</b><span>${MON[d.getMonth()]} ${d.getDate()}</span></div>`
         + `<div class="day-plan">${plan}</div>`
         + `<div class="day-act">${done}</div>`
@@ -100,6 +116,10 @@ export default {
     }
 
     const actions = [];
+    if (wk) {
+      actions.push(`<button id="toggleEdit"${editing ? ' class="solid"' : ''}>`
+        + `${editing ? 'Done editing' : 'Edit week'}</button>`);
+    }
     if (ctx.data.claude?.available) {
       actions.push(`<button class="${wk ? '' : 'solid'}" data-plan="${weekKey}">${wk ? 'Re-plan this week' : `Plan ${weekKey}`}</button>`);
       if (isThis) actions.push(`<button data-plan="${weekAdd(weekKey, 1)}">Plan next week</button>`);
@@ -136,6 +156,31 @@ export default {
       ctx.go('/today');
     };
     root.addEventListener('click', async (e) => {
+      if (e.target.id === 'toggleEdit') { editing = !editing; ctx.rerender(); return; }
+
+      const move = e.target.closest('[data-move]');
+      if (move) {
+        const [dayIndex, sessionIndex] = move.getAttribute('data-move').split(':').map(Number);
+        openSessionMove(ctx, { weekKey: activeWeek(ctx), dayIndex, sessionIndex });
+        return;
+      }
+      const edit = e.target.closest('[data-editsession]');
+      if (edit) {
+        const [dayIndex, sessionIndex] = edit.getAttribute('data-editsession').split(':').map(Number);
+        openSessionEdit(ctx, { weekKey: activeWeek(ctx), dayIndex, sessionIndex });
+        return;
+      }
+      const add = e.target.closest('[data-addsession]');
+      if (add) {
+        openSessionEdit(ctx, { weekKey: activeWeek(ctx), dayIndex: Number(add.getAttribute('data-addsession')) });
+        return;
+      }
+      const clear = e.target.closest('[data-clearday]');
+      if (clear) {
+        await clearDay(ctx, activeWeek(ctx), Number(clear.getAttribute('data-clearday')));
+        return;
+      }
+
       const wkBtn = e.target.closest('[data-week]');
       if (wkBtn) {
         const n = Number(wkBtn.getAttribute('data-week'));

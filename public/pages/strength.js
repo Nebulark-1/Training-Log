@@ -4,6 +4,7 @@
 // movements, session after session, with the load creeping up. Changes are
 // deliberate and visible, which is why the change log sits right on the page.
 import { sparkline } from '../components/charts.js';
+import { openMovementSheet } from '../components/programedit.js';
 import { PATTERNS, e1rm } from '../lib/movements.js';
 import { esc, n0, n1, pageHead, shortDate, signed, toast, violationList } from '../lib/ui.js';
 
@@ -11,7 +12,7 @@ const roleChip = (role) => (role === 'trial'
   ? '<span class="chip trial">trial</span>'
   : '<span class="chip core">core</span>');
 
-function movementRow(m, history, progress) {
+function movementRow(m, history, progress, sessionId) {
   const records = history[m.exId] || [];
   const last = records[0];
   const trend = progress.find((p) => p.exId === m.exId);
@@ -31,6 +32,10 @@ function movementRow(m, history, progress) {
     + `<td class="m-trend">${trend && points.length > 1
       ? `${sparkline(points)}<span>${signed(trend.changeLb)} lb</span>`
       : trend ? `<span class="mut">e1RM ${trend.latest.e1rm}</span>` : ''}</td>`
+    + '<td class="m-act">'
+    + `<button class="link" data-swap="${esc(sessionId)}:${esc(m.exId)}">Swap</button>`
+    + `<button class="link" data-editmove="${esc(sessionId)}:${esc(m.exId)}">Edit</button>`
+    + '</td>'
     + '</tr>';
 }
 
@@ -44,14 +49,17 @@ function sessionCard(session, history, progress, prescription) {
     + `<span class="ps-count">${(session.movements || []).length} movements</span>`
     + '</header>'
     + '<div class="tablewrap"><table class="movements"><thead><tr>'
-    + '<th>Movement</th><th>Sets</th><th>Next load</th><th>Last logged</th><th>Estimated 1RM</th>'
+    + '<th>Movement</th><th>Sets</th><th>Next load</th><th>Last logged</th><th>Estimated 1RM</th><th></th>'
     + '</tr></thead><tbody>'
     + (session.movements || []).map((m) => movementRow(
       { ...m, loadLb: rx.get(m.exId)?.loadLb ?? m.loadLb, basis: rx.get(m.exId)?.basis },
       history,
       progress,
+      session.id,
     )).join('')
     + '</tbody></table></div>'
+    + `<div class="ps-foot"><button class="link" data-addmove="${esc(session.id)}">+ Add a movement</button>`
+    + `<span class="mut">${(session.movements || []).length} of 6</span></div>`
     + '</section>';
 }
 
@@ -133,7 +141,8 @@ export default {
       + '</div>'
       + coverage(program)
       + '<div class="thinking" id="workStatus" hidden></div>'
-      + '<div id="programViolations"></div>'
+      + `<div id="programViolations">${window.__vlProgramNotes
+        ? violationList(window.__vlProgramNotes, { title: 'On the last change' }) : ''}</div>`
       + program.sessions.map((s) => sessionCard(
         s,
         history,
@@ -173,6 +182,24 @@ export default {
     }
 
     root.addEventListener('click', async (e) => {
+      const swap = e.target.closest('[data-swap]');
+      if (swap) {
+        const [sessionId, exId] = swap.getAttribute('data-swap').split(':');
+        openMovementSheet(ctx, { sessionId, exId, mode: 'swap' });
+        return;
+      }
+      const editMove = e.target.closest('[data-editmove]');
+      if (editMove) {
+        const [sessionId, exId] = editMove.getAttribute('data-editmove').split(':');
+        openMovementSheet(ctx, { sessionId, exId, mode: 'edit' });
+        return;
+      }
+      const addMove = e.target.closest('[data-addmove]');
+      if (addMove) {
+        openMovementSheet(ctx, { sessionId: addMove.getAttribute('data-addmove'), mode: 'add' });
+        return;
+      }
+
       if (e.target.id !== 'reviewProgram') return;
       const { work } = await import('../app.js');
       const out = await work('Reviewing the program', (signal) => (
