@@ -749,18 +749,71 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 /* ---- the body map -------------------------------------------------------- */
 .painmap{margin:4px 0 18px}
 .bodymap{border:1px solid var(--line); background:var(--card); padding:14px 16px 16px}
+/* Both figures stack over the readout; a zoomed one sits beside it. */
+.bm-body{display:block}
+.bodymap[data-stage="view"] .bm-body,
+.bodymap[data-stage="zone"] .bm-body{display:flex; gap:20px; align-items:flex-start}
+.bodymap[data-stage="view"] .bm-stage,
+.bodymap[data-stage="zone"] .bm-stage{flex:0 0 236px}
+.bodymap[data-stage="view"] .bm-readout,
+.bodymap[data-stage="zone"] .bm-readout{
+  flex:1 1 250px; min-width:0; margin-top:0; border-top:0; padding-top:0;
+}
 .bm-views{display:flex; gap:10px; justify-content:center; align-items:flex-start}
-.bm-view{flex:0 1 190px; max-width:190px; text-align:center; position:relative}
-.bm-view.pick .bm-svg{cursor:crosshair}
+.bm-views.one{justify-content:flex-start}
+
+/* Each figure lives in its own box, so left and right can be labelled on it. */
+.bm-frame{
+  position:relative; flex:0 1 190px; max-width:190px; text-align:center;
+  border:1px solid var(--line); background:var(--raise); padding:20px 10px 7px;
+}
+.bm-frame.open{
+  display:block; width:100%; font:inherit; color:inherit; cursor:zoom-in;
+  transition:border-color .12s ease;
+}
+.bm-frame.open:hover,.bm-frame.open:focus-visible{border-color:var(--ink)}
+.bm-frame.pick .bm-svg{cursor:crosshair}
+.bm-views.one .bm-frame{flex:1 1 auto; max-width:236px}
+/* From the athlete's point of view: the front figure faces you, so it is flipped. */
+.bm-side{
+  position:absolute; top:5px; font-family:'Barlow Condensed',sans-serif; font-size:11px;
+  letter-spacing:.14em; color:var(--faint); border:1px solid var(--line2);
+  padding:0 5px; line-height:1.6;
+}
+.bm-side.l{left:6px}
+.bm-side.r{right:6px}
 .bm-svg{width:100%; height:auto; display:block; touch-action:manipulation}
 .bm-viewlabel{
   display:block; margin-top:4px; font-family:'Barlow Condensed',sans-serif;
   font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--mut);
 }
+.bm-crumbs{
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:11px;
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--mut);
+}
+.bm-crumbs i{font-style:normal; color:var(--faint)}
+.bm-crumbs span{color:var(--ink)}
+.bm-crumbs .link{font:inherit; letter-spacing:inherit; text-transform:inherit}
+.bodymap[data-stage="both"] .bm-crumbs{display:none}
+
 /* The silhouette is artwork, so it is drawn as one flat shape. */
 .bm-path{fill:var(--ghost); stroke:var(--line); stroke-width:.6; transition:fill .12s ease}
-.bm-view.pick:hover .bm-path{fill:var(--ghost2)}
-@media (prefers-reduced-motion:reduce){.bm-path{transition:none}}
+.bm-frame.pick:hover .bm-path,.bm-frame.open:hover .bm-path{fill:var(--ghost2)}
+/*
+ * The highlight is the same artwork drawn again through a clip of the named
+ * area, so it lights up the shape of the body and not a rectangle over it.
+ */
+.bm-lit{pointer-events:none; opacity:.45}
+.bm-lit .bm-path{fill:var(--flag); stroke:var(--flag); stroke-width:.6}
+.bm-litbox{
+  fill:none; stroke:var(--flag); stroke-width:1.5; stroke-dasharray:5 3.5;
+  opacity:.7; pointer-events:none;
+}
+clipPath rect,.bm-litbox{transition:x .14s ease, y .14s ease, width .14s ease, height .14s ease}
+@media (prefers-reduced-motion:reduce){
+  .bm-path,.bm-frame.open,clipPath rect,.bm-litbox{transition:none}
+}
 
 .bm-pin circle{fill:none; stroke:var(--flag); stroke-width:2.5}
 .bm-pin .bm-pin-dot{fill:var(--flag); stroke:none}
@@ -799,7 +852,7 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 .bm-free{margin-bottom:0}
 
 .bodymap.heat{padding:18px}
-.bodymap.heat .bm-view{flex-basis:230px; max-width:230px}
+.bodymap.heat .bm-frame{flex-basis:230px; max-width:230px}
 .plainlist{list-style:none; margin:0; padding:0; font-size:16px}
 .plainlist li{padding:5px 0; border-bottom:1px dotted var(--line)}
 .plainlist li span{
@@ -807,5 +860,10 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
   font-variant-numeric:tabular-nums;
 }
 @media (max-width:560px){
-  .bm-view{flex-basis:46%}
+  .bm-frame{flex-basis:46%}
+  .bodymap[data-stage="view"] .bm-body,
+  .bodymap[data-stage="zone"] .bm-body{display:block}
+  .bodymap[data-stage="view"] .bm-readout,
+  .bodymap[data-stage="zone"] .bm-readout{margin-top:12px}
+  .bm-views.one{justify-content:center}
 }

@@ -29,272 +29,344 @@ export const KINDS = {
   other: 'other',
 };
 
-const s = (id, label, kind) => ({ id, label, kind });
+const s = (id, label, kind, area = null) => ({ id, label, kind, area });
 
 /**
  * Zones, as boxes over the viewBox. Ordered most-specific first: `zoneAt`
  * takes the first box containing the point, then falls back to the nearest.
  * `sided: false` means the structure is midline and has no left or right.
+ *
+ * Every structure carries an `area`: [x0, y0, x1, y1] as fractions of the LIMB
+ * box — the half of the zone on the side that was clicked. x runs LATERAL to
+ * MEDIAL, so a single definition lights up the correct part of either limb
+ * without being written twice. Omit it and the whole zone lights up, which is
+ * the honest answer for something like a joint that has no sub-region.
  */
 export const ZONES = [
   // ---------------------------------------------------------------- front
   {
     id: 'head', view: 'front', label: 'Head and face', box: [255, 50, 342, 150], sided: false,
-    structures: [s('jaw', 'Jaw / TMJ', 'joint'), s('sinus', 'Sinus', 'other'), s('skull', 'Skull', 'bone')],
+    structures: [
+      s('jaw', 'Jaw / TMJ', 'joint', [0.1, 0.6, 0.9, 0.95]),
+      s('sinus', 'Sinus', 'other', [0.2, 0.3, 0.8, 0.6]),
+      s('skull', 'Skull', 'bone', [0.05, 0, 0.95, 0.45]),
+    ],
   },
   {
     id: 'neck-front', view: 'front', label: 'Neck, front', box: [255, 148, 342, 186], sided: true,
     structures: [
-      s('scalene', 'Scalenes', 'muscle'), s('scm', 'Sternocleidomastoid', 'muscle'),
-      s('throat', 'Throat / trachea', 'other'), s('cervical-spine', 'Cervical spine', 'bone'),
+      s('scalene', 'Scalenes', 'muscle', [0, 0.2, 0.55, 1]),
+      s('scm', 'Sternocleidomastoid', 'muscle', [0.2, 0, 0.8, 1]),
+      s('throat', 'Throat / trachea', 'other', [0.7, 0.2, 1, 1]),
+      s('cervical-spine', 'Cervical spine', 'bone', [0.6, 0, 1, 0.8]),
     ],
   },
   {
     id: 'shoulder-front', view: 'front', label: 'Shoulder, front', box: [190, 172, 405, 245], sided: true,
     outsideOnly: [232, 364],
     structures: [
-      s('deltoid-ant', 'Anterior deltoid', 'muscle'), s('rotator-cuff', 'Rotator cuff', 'tendon'),
-      s('biceps-tendon', 'Long head of biceps tendon', 'tendon'), s('ac-joint', 'AC joint', 'joint'),
-      s('gh-joint', 'Glenohumeral joint', 'joint'), s('labrum', 'Labrum', 'other'),
+      s('deltoid-ant', 'Anterior deltoid', 'muscle', [0.15, 0.15, 0.85, 0.8]),
+      s('rotator-cuff', 'Rotator cuff', 'tendon', [0.3, 0.05, 0.95, 0.5]),
+      s('biceps-tendon', 'Long head of biceps tendon', 'tendon', [0.35, 0.3, 0.7, 0.95]),
+      s('ac-joint', 'AC joint', 'joint', [0.5, 0, 1, 0.3]),
+      s('gh-joint', 'Glenohumeral joint', 'joint', [0.25, 0.2, 0.75, 0.65]),
+      s('labrum', 'Labrum', 'other', [0.3, 0.25, 0.8, 0.6]),
     ],
   },
   {
     id: 'chest', view: 'front', label: 'Chest', box: [228, 180, 368, 262], sided: true,
     structures: [
-      s('pec-major', 'Pectoralis major', 'muscle'), s('pec-minor', 'Pectoralis minor', 'muscle'),
-      s('sternum', 'Sternum', 'bone'), s('ribs', 'Ribs / costal cartilage', 'bone'),
-      s('intercostal', 'Intercostals', 'muscle'),
+      s('pec-major', 'Pectoralis major', 'muscle', [0.05, 0.15, 0.95, 0.9]),
+      s('pec-minor', 'Pectoralis minor', 'muscle', [0.1, 0.1, 0.6, 0.6]),
+      s('sternum', 'Sternum', 'bone', [0.82, 0.05, 1, 1]),
+      s('ribs', 'Ribs / costal cartilage', 'bone', [0.3, 0.55, 1, 1]),
+      s('intercostal', 'Intercostals', 'muscle', [0.1, 0.5, 0.85, 1]),
     ],
   },
   {
     id: 'upper-arm-front', view: 'front', label: 'Upper arm, front', box: [180, 225, 415, 315], sided: true,
     outsideOnly: [232, 364],
     structures: [
-      s('biceps', 'Biceps brachii', 'muscle'), s('brachialis', 'Brachialis', 'muscle'),
-      s('triceps', 'Triceps', 'muscle'), s('humerus', 'Humerus', 'bone'),
+      s('biceps', 'Biceps brachii', 'muscle', [0.25, 0.1, 0.9, 0.85]),
+      s('brachialis', 'Brachialis', 'muscle', [0.15, 0.45, 0.7, 1]),
+      s('triceps', 'Triceps', 'muscle', [0, 0.1, 0.4, 0.9]),
+      s('humerus', 'Humerus', 'bone', [0.35, 0, 0.7, 1]),
     ],
   },
   {
     id: 'elbow-front', view: 'front', label: 'Elbow', box: [175, 300, 420, 340], sided: true,
     outsideOnly: [232, 364],
     structures: [
-      s('lateral-epicondyle', 'Lateral epicondyle (tennis elbow)', 'tendon'),
-      s('medial-epicondyle', 'Medial epicondyle (golfer’s elbow)', 'tendon'),
-      s('biceps-distal', 'Distal biceps tendon', 'tendon'), s('elbow-joint', 'Elbow joint', 'joint'),
-      s('ulnar-nerve', 'Ulnar nerve', 'nerve'),
+      s('lateral-epicondyle', 'Lateral epicondyle (tennis elbow)', 'tendon', [0, 0.15, 0.35, 0.85]),
+      s('medial-epicondyle', 'Medial epicondyle (golfer’s elbow)', 'tendon', [0.65, 0.15, 1, 0.85]),
+      s('biceps-distal', 'Distal biceps tendon', 'tendon', [0.3, 0, 0.75, 0.6]),
+      s('elbow-joint', 'Elbow joint', 'joint', [0.2, 0.25, 0.85, 0.95]),
+      s('ulnar-nerve', 'Ulnar nerve', 'nerve', [0.72, 0.25, 1, 1]),
     ],
   },
   {
     id: 'forearm-front', view: 'front', label: 'Forearm', box: [170, 335, 425, 425], sided: true,
     outsideOnly: [240, 356],
     structures: [
-      s('wrist-flexors', 'Wrist flexors', 'muscle'), s('wrist-extensors', 'Wrist extensors', 'muscle'),
-      s('brachioradialis', 'Brachioradialis', 'muscle'), s('radius', 'Radius', 'bone'),
-      s('ulna', 'Ulna', 'bone'),
+      s('wrist-flexors', 'Wrist flexors', 'muscle', [0.5, 0.1, 1, 0.95]),
+      s('wrist-extensors', 'Wrist extensors', 'muscle', [0, 0.1, 0.5, 0.95]),
+      s('brachioradialis', 'Brachioradialis', 'muscle', [0, 0, 0.45, 0.5]),
+      s('radius', 'Radius', 'bone', [0.05, 0.2, 0.35, 1]),
+      s('ulna', 'Ulna', 'bone', [0.7, 0.2, 1, 1]),
     ],
   },
   {
     id: 'hand', view: 'front', label: 'Wrist and hand', box: [165, 420, 430, 485], sided: true,
     outsideOnly: [245, 350],
     structures: [
-      s('wrist-joint', 'Wrist joint', 'joint'), s('carpal-tunnel', 'Carpal tunnel', 'nerve'),
-      s('thumb-base', 'Thumb base / CMC joint', 'joint'), s('fingers', 'Fingers', 'joint'),
+      s('wrist-joint', 'Wrist joint', 'joint', [0.05, 0, 0.95, 0.3]),
+      s('carpal-tunnel', 'Carpal tunnel', 'nerve', [0.35, 0.15, 0.85, 0.5]),
+      s('thumb-base', 'Thumb base / CMC joint', 'joint', [0.6, 0.2, 1, 0.6]),
+      s('fingers', 'Fingers', 'joint', [0, 0.55, 1, 1]),
     ],
   },
   {
     id: 'abdomen-upper', view: 'front', label: 'Upper abdomen', box: [236, 258, 360, 332], sided: true,
     structures: [
-      s('rectus-abdominis', 'Rectus abdominis', 'muscle'), s('obliques', 'Obliques', 'muscle'),
-      s('diaphragm', 'Diaphragm / side stitch', 'muscle'), s('lower-ribs', 'Lower ribs', 'bone'),
+      s('rectus-abdominis', 'Rectus abdominis', 'muscle', [0.55, 0, 1, 1]),
+      s('obliques', 'Obliques', 'muscle', [0, 0.1, 0.55, 1]),
+      s('diaphragm', 'Diaphragm / side stitch', 'muscle', [0.1, 0, 1, 0.35]),
+      s('lower-ribs', 'Lower ribs', 'bone', [0, 0, 0.8, 0.4]),
     ],
   },
   {
     id: 'abdomen-lower', view: 'front', label: 'Lower abdomen', box: [236, 330, 360, 392], sided: true,
     structures: [
-      s('rectus-lower', 'Lower rectus abdominis', 'muscle'), s('obliques-lower', 'Lower obliques', 'muscle'),
-      s('inguinal', 'Inguinal region', 'other'),
+      s('rectus-lower', 'Lower rectus abdominis', 'muscle', [0.55, 0, 1, 1]),
+      s('obliques-lower', 'Lower obliques', 'muscle', [0, 0, 0.55, 1]),
+      s('inguinal', 'Inguinal region', 'other', [0.1, 0.6, 0.8, 1]),
     ],
   },
   {
     id: 'hip-front', view: 'front', label: 'Hip and groin', box: [230, 386, 366, 452], sided: true,
     structures: [
-      s('hip-flexor', 'Hip flexor / psoas', 'muscle'), s('adductor', 'Adductors / groin', 'muscle'),
-      s('adductor-tendon', 'Adductor tendon', 'tendon'), s('hip-joint', 'Hip joint', 'joint'),
-      s('labrum-hip', 'Hip labrum', 'other'), s('tfl', 'TFL', 'muscle'),
-      s('pubic', 'Pubic symphysis', 'bone'),
+      s('hip-flexor', 'Hip flexor / psoas', 'muscle', [0.3, 0, 0.85, 0.6]),
+      s('adductor', 'Adductors / groin', 'muscle', [0.6, 0.35, 1, 1]),
+      s('adductor-tendon', 'Adductor tendon', 'tendon', [0.75, 0.25, 1, 0.7]),
+      s('hip-joint', 'Hip joint', 'joint', [0.2, 0.15, 0.7, 0.65]),
+      s('labrum-hip', 'Hip labrum', 'other', [0.25, 0.2, 0.65, 0.6]),
+      s('tfl', 'TFL', 'muscle', [0, 0.05, 0.35, 0.6]),
+      s('pubic', 'Pubic symphysis', 'bone', [0.85, 0.45, 1, 0.9]),
     ],
   },
   {
     id: 'thigh-front-upper', view: 'front', label: 'Upper thigh, front', box: [220, 448, 376, 512], sided: true,
     structures: [
-      s('rectus-femoris', 'Rectus femoris', 'muscle'), s('vastus-lateralis', 'Vastus lateralis', 'muscle'),
-      s('vastus-medialis', 'Vastus medialis', 'muscle'), s('adductor-mid', 'Adductors', 'muscle'),
-      s('it-band-upper', 'IT band, upper', 'tendon'), s('femur', 'Femur', 'bone'),
+      s('rectus-femoris', 'Rectus femoris', 'muscle', [0.35, 0, 0.75, 1]),
+      s('vastus-lateralis', 'Vastus lateralis', 'muscle', [0, 0.1, 0.4, 1]),
+      s('vastus-medialis', 'Vastus medialis', 'muscle', [0.7, 0.35, 1, 1]),
+      s('adductor-mid', 'Adductors', 'muscle', [0.75, 0, 1, 0.8]),
+      s('it-band-upper', 'IT band, upper', 'tendon', [0, 0, 0.22, 1]),
+      s('femur', 'Femur', 'bone', [0.4, 0, 0.7, 1]),
     ],
   },
   {
     id: 'thigh-front-lower', view: 'front', label: 'Lower thigh, above the knee', box: [220, 510, 376, 566], sided: true,
     structures: [
-      s('quad-tendon', 'Quad tendon', 'tendon'), s('vmo', 'VMO', 'muscle'),
-      s('it-band-lower', 'IT band, lower', 'tendon'), s('distal-quad', 'Distal quadriceps', 'muscle'),
+      s('quad-tendon', 'Quad tendon', 'tendon', [0.3, 0.5, 0.8, 1]),
+      s('vmo', 'VMO', 'muscle', [0.65, 0.3, 1, 1]),
+      s('it-band-lower', 'IT band, lower', 'tendon', [0, 0, 0.22, 1]),
+      s('distal-quad', 'Distal quadriceps', 'muscle', [0.25, 0, 0.85, 0.7]),
     ],
   },
   {
     id: 'knee-front', view: 'front', label: 'Knee, front', box: [220, 562, 376, 612], sided: true,
     structures: [
-      s('patella', 'Patella / kneecap', 'bone'), s('patellar-tendon', 'Patellar tendon', 'tendon'),
-      s('medial-joint-line', 'Medial joint line', 'joint'), s('lateral-joint-line', 'Lateral joint line', 'joint'),
-      s('mcl', 'MCL', 'other'), s('lcl', 'LCL', 'other'), s('meniscus', 'Meniscus', 'other'),
-      s('fat-pad', 'Fat pad', 'other'), s('gerdys', 'IT band insertion (Gerdy’s tubercle)', 'tendon'),
-      s('pes-anserine', 'Pes anserine', 'tendon'),
+      s('patella', 'Patella / kneecap', 'bone', [0.3, 0.1, 0.75, 0.6]),
+      s('patellar-tendon', 'Patellar tendon', 'tendon', [0.35, 0.55, 0.7, 1]),
+      s('medial-joint-line', 'Medial joint line', 'joint', [0.72, 0.35, 1, 0.75]),
+      s('lateral-joint-line', 'Lateral joint line', 'joint', [0, 0.35, 0.28, 0.75]),
+      s('mcl', 'MCL', 'other', [0.78, 0.2, 1, 0.9]),
+      s('lcl', 'LCL', 'other', [0, 0.2, 0.22, 0.9]),
+      s('meniscus', 'Meniscus', 'other', [0.15, 0.45, 0.9, 0.7]),
+      s('fat-pad', 'Fat pad', 'other', [0.35, 0.6, 0.7, 0.85]),
+      s('gerdys', 'IT band insertion (Gerdy’s tubercle)', 'tendon', [0, 0.55, 0.3, 0.95]),
+      s('pes-anserine', 'Pes anserine', 'tendon', [0.72, 0.7, 1, 1]),
     ],
   },
   {
     id: 'shin', view: 'front', label: 'Shin and lower leg, front', box: [220, 608, 376, 722], sided: true,
     structures: [
-      s('tibialis-anterior', 'Tibialis anterior', 'muscle'),
-      s('tibialis-anterior-sup', 'Tibialis anterior, upper third', 'muscle'),
-      s('medial-tibia', 'Medial tibial border (shin splints)', 'bone'),
-      s('tibia', 'Tibia', 'bone'), s('fibula', 'Fibula', 'bone'),
-      s('anterior-compartment', 'Anterior compartment', 'other'),
-      s('peroneals', 'Peroneals / fibularis', 'muscle'),
-      s('extensor-tendons', 'Extensor tendons', 'tendon'),
+      s('tibialis-anterior', 'Tibialis anterior', 'muscle', [0.25, 0.05, 0.7, 0.75]),
+      s('tibialis-anterior-sup', 'Tibialis anterior, upper third', 'muscle', [0.25, 0.02, 0.7, 0.34]),
+      s('medial-tibia', 'Medial tibial border (shin splints)', 'bone', [0.7, 0.1, 0.95, 0.9]),
+      s('tibia', 'Tibia', 'bone', [0.55, 0, 0.9, 1]),
+      s('fibula', 'Fibula', 'bone', [0, 0.05, 0.25, 1]),
+      s('anterior-compartment', 'Anterior compartment', 'other', [0.2, 0.05, 0.65, 0.85]),
+      s('peroneals', 'Peroneals / fibularis', 'muscle', [0, 0.15, 0.3, 0.9]),
+      s('extensor-tendons', 'Extensor tendons', 'tendon', [0.25, 0.75, 0.75, 1]),
     ],
   },
   {
     id: 'ankle-front', view: 'front', label: 'Ankle', box: [220, 718, 376, 764], sided: true,
     structures: [
-      s('ankle-joint', 'Ankle joint', 'joint'), s('atfl', 'ATFL / lateral ligaments', 'other'),
-      s('deltoid-lig', 'Deltoid ligament (medial)', 'other'),
-      s('tib-post-tendon', 'Tibialis posterior tendon', 'tendon'),
-      s('peroneal-tendon', 'Peroneal tendons', 'tendon'),
-      s('medial-malleolus', 'Medial malleolus', 'bone'), s('lateral-malleolus', 'Lateral malleolus', 'bone'),
+      s('ankle-joint', 'Ankle joint', 'joint', [0.15, 0.2, 0.9, 0.75]),
+      s('atfl', 'ATFL / lateral ligaments', 'other', [0, 0.35, 0.3, 0.9]),
+      s('deltoid-lig', 'Deltoid ligament (medial)', 'other', [0.72, 0.35, 1, 0.9]),
+      s('tib-post-tendon', 'Tibialis posterior tendon', 'tendon', [0.75, 0.15, 1, 0.7]),
+      s('peroneal-tendon', 'Peroneal tendons', 'tendon', [0, 0.15, 0.28, 0.7]),
+      s('medial-malleolus', 'Medial malleolus', 'bone', [0.75, 0.25, 1, 0.65]),
+      s('lateral-malleolus', 'Lateral malleolus', 'bone', [0, 0.25, 0.25, 0.65]),
     ],
   },
   {
     id: 'foot-top', view: 'front', label: 'Foot, top', box: [215, 760, 380, 800], sided: true,
     structures: [
-      s('metatarsal', 'Metatarsals', 'bone'), s('navicular', 'Navicular', 'bone'),
-      s('extensor-foot', 'Extensor tendons', 'tendon'), s('toes', 'Toes', 'joint'),
-      s('midfoot', 'Midfoot / Lisfranc', 'joint'), s('bunion', 'Great toe / bunion', 'joint'),
+      s('metatarsal', 'Metatarsals', 'bone', [0.1, 0.3, 0.95, 0.8]),
+      s('navicular', 'Navicular', 'bone', [0.6, 0.05, 0.95, 0.45]),
+      s('extensor-foot', 'Extensor tendons', 'tendon', [0.2, 0.1, 0.8, 0.7]),
+      s('toes', 'Toes', 'joint', [0, 0.75, 1, 1]),
+      s('midfoot', 'Midfoot / Lisfranc', 'joint', [0.35, 0.15, 0.85, 0.55]),
+      s('bunion', 'Great toe / bunion', 'joint', [0.75, 0.7, 1, 1]),
     ],
   },
 
   // ----------------------------------------------------------------- back
   {
     id: 'head-back', view: 'back', label: 'Back of head', box: [265, 55, 350, 145], sided: false,
-    structures: [s('occiput', 'Occiput', 'bone'), s('suboccipital', 'Suboccipital muscles', 'muscle')],
+    structures: [
+      s('occiput', 'Occiput', 'bone', [0.1, 0.55, 0.9, 0.9]),
+      s('suboccipital', 'Suboccipital muscles', 'muscle', [0.2, 0.75, 0.8, 1]),
+    ],
   },
   {
     id: 'neck-back', view: 'back', label: 'Neck, back', box: [262, 118, 352, 190], sided: true,
     structures: [
-      s('upper-trap', 'Upper trapezius', 'muscle'), s('levator', 'Levator scapulae', 'muscle'),
-      s('cervical-spine-b', 'Cervical spine', 'bone'), s('nuchal', 'Nuchal line', 'other'),
+      s('upper-trap', 'Upper trapezius', 'muscle', [0, 0.4, 0.7, 1]),
+      s('levator', 'Levator scapulae', 'muscle', [0.1, 0.5, 0.6, 1]),
+      s('cervical-spine-b', 'Cervical spine', 'bone', [0.75, 0, 1, 1]),
+      s('nuchal', 'Nuchal line', 'other', [0.3, 0, 1, 0.25]),
     ],
   },
   {
     id: 'shoulder-back', view: 'back', label: 'Shoulder, back', box: [196, 178, 415, 256], sided: true,
     outsideOnly: [242, 369],
     structures: [
-      s('deltoid-post', 'Posterior deltoid', 'muscle'), s('supraspinatus', 'Supraspinatus', 'tendon'),
-      s('infraspinatus', 'Infraspinatus', 'muscle'), s('teres', 'Teres major / minor', 'muscle'),
-      s('scapula', 'Scapula', 'bone'),
+      s('deltoid-post', 'Posterior deltoid', 'muscle', [0.05, 0.1, 0.7, 0.8]),
+      s('supraspinatus', 'Supraspinatus', 'tendon', [0.4, 0, 1, 0.3]),
+      s('infraspinatus', 'Infraspinatus', 'muscle', [0.45, 0.25, 1, 0.75]),
+      s('teres', 'Teres major / minor', 'muscle', [0.4, 0.6, 1, 1]),
+      s('scapula', 'Scapula', 'bone', [0.35, 0.1, 1, 0.95]),
     ],
   },
   {
     id: 'upper-back', view: 'back', label: 'Upper back', box: [238, 186, 372, 262], sided: true,
     structures: [
-      s('trapezius-mid', 'Mid trapezius', 'muscle'), s('rhomboid', 'Rhomboids', 'muscle'),
-      s('thoracic-spine', 'Thoracic spine', 'bone'), s('scapula-medial', 'Medial scapular border', 'bone'),
+      s('trapezius-mid', 'Mid trapezius', 'muscle', [0.3, 0, 1, 0.8]),
+      s('rhomboid', 'Rhomboids', 'muscle', [0.5, 0.15, 0.95, 0.85]),
+      s('thoracic-spine', 'Thoracic spine', 'bone', [0.85, 0, 1, 1]),
+      s('scapula-medial', 'Medial scapular border', 'bone', [0.35, 0.1, 0.65, 0.95]),
     ],
   },
   {
     id: 'mid-back', view: 'back', label: 'Mid back', box: [238, 258, 372, 322], sided: true,
     structures: [
-      s('lats', 'Latissimus dorsi', 'muscle'), s('erectors-thoracic', 'Erector spinae', 'muscle'),
-      s('ribs-back', 'Ribs', 'bone'), s('serratus', 'Serratus posterior', 'muscle'),
+      s('lats', 'Latissimus dorsi', 'muscle', [0, 0, 0.75, 1]),
+      s('erectors-thoracic', 'Erector spinae', 'muscle', [0.72, 0, 1, 1]),
+      s('ribs-back', 'Ribs', 'bone', [0.1, 0, 0.8, 0.6]),
+      s('serratus', 'Serratus posterior', 'muscle', [0.05, 0.1, 0.5, 0.7]),
     ],
   },
   {
     id: 'lower-back', view: 'back', label: 'Lower back', box: [238, 318, 372, 398], sided: true,
     structures: [
-      s('erectors-lumbar', 'Lumbar erectors', 'muscle'), s('ql', 'Quadratus lumborum', 'muscle'),
-      s('lumbar-spine', 'Lumbar spine', 'bone'), s('si-joint', 'SI joint', 'joint'),
-      s('disc', 'Disc', 'other'), s('sciatic', 'Sciatic nerve', 'nerve'),
+      s('erectors-lumbar', 'Lumbar erectors', 'muscle', [0.65, 0, 1, 0.85]),
+      s('ql', 'Quadratus lumborum', 'muscle', [0.35, 0.05, 0.8, 0.6]),
+      s('lumbar-spine', 'Lumbar spine', 'bone', [0.85, 0, 1, 0.9]),
+      s('si-joint', 'SI joint', 'joint', [0.6, 0.7, 0.95, 1]),
+      s('disc', 'Disc', 'other', [0.8, 0.2, 1, 0.8]),
+      s('sciatic', 'Sciatic nerve', 'nerve', [0.5, 0.75, 0.9, 1]),
     ],
   },
   {
     id: 'upper-arm-back', view: 'back', label: 'Upper arm, back', box: [186, 228, 425, 315], sided: true,
     outsideOnly: [242, 369],
     structures: [
-      s('triceps-b', 'Triceps', 'muscle'), s('triceps-tendon', 'Triceps tendon', 'tendon'),
-      s('humerus-b', 'Humerus', 'bone'),
+      s('triceps-b', 'Triceps', 'muscle', [0.15, 0.05, 0.9, 0.8]),
+      s('triceps-tendon', 'Triceps tendon', 'tendon', [0.3, 0.75, 0.8, 1]),
+      s('humerus-b', 'Humerus', 'bone', [0.35, 0, 0.7, 1]),
     ],
   },
   {
     id: 'forearm-back', view: 'back', label: 'Forearm, back', box: [178, 312, 432, 448], sided: true,
     outsideOnly: [248, 362],
     structures: [
-      s('extensors-b', 'Wrist extensors', 'muscle'), s('elbow-back', 'Elbow / olecranon', 'joint'),
-      s('radius-b', 'Radius', 'bone'), s('ulna-b', 'Ulna', 'bone'),
+      s('extensors-b', 'Wrist extensors', 'muscle', [0.1, 0.15, 0.75, 0.9]),
+      s('elbow-back', 'Elbow / olecranon', 'joint', [0.3, 0, 0.9, 0.2]),
+      s('radius-b', 'Radius', 'bone', [0.05, 0.25, 0.35, 1]),
+      s('ulna-b', 'Ulna', 'bone', [0.7, 0.2, 1, 1]),
     ],
   },
   {
     id: 'hand-back', view: 'back', label: 'Hand, back', box: [175, 444, 436, 500], sided: true,
     outsideOnly: [252, 358],
-    structures: [s('wrist-back', 'Wrist', 'joint'), s('knuckles', 'Knuckles', 'joint')],
+    structures: [
+      s('wrist-back', 'Wrist', 'joint', [0.05, 0, 0.95, 0.35]),
+      s('knuckles', 'Knuckles', 'joint', [0.05, 0.6, 0.95, 1]),
+    ],
   },
   {
     id: 'glute', view: 'back', label: 'Glutes', box: [238, 394, 374, 462], sided: true,
     structures: [
-      s('glute-max', 'Gluteus maximus', 'muscle'), s('glute-med', 'Gluteus medius', 'muscle'),
-      s('piriformis', 'Piriformis', 'muscle'),
-      s('high-hamstring', 'High hamstring tendon', 'tendon'),
-      s('ischial', 'Sit bone (ischial tuberosity)', 'bone'),
-      s('sciatic-glute', 'Sciatic nerve', 'nerve'),
+      s('glute-max', 'Gluteus maximus', 'muscle', [0.2, 0.2, 1, 1]),
+      s('glute-med', 'Gluteus medius', 'muscle', [0, 0, 0.5, 0.55]),
+      s('piriformis', 'Piriformis', 'muscle', [0.4, 0.2, 0.85, 0.55]),
+      s('high-hamstring', 'High hamstring tendon', 'tendon', [0.35, 0.75, 0.9, 1]),
+      s('ischial', 'Sit bone (ischial tuberosity)', 'bone', [0.5, 0.8, 0.95, 1]),
+      s('sciatic-glute', 'Sciatic nerve', 'nerve', [0.45, 0.45, 0.8, 1]),
     ],
   },
   {
     id: 'hamstring', view: 'back', label: 'Hamstring', box: [232, 458, 380, 570], sided: true,
     structures: [
-      s('biceps-femoris', 'Biceps femoris', 'muscle'), s('semitendinosus', 'Semitendinosus', 'muscle'),
-      s('semimembranosus', 'Semimembranosus', 'muscle'),
-      s('hamstring-mid', 'Hamstring belly', 'muscle'),
-      s('it-band-back', 'IT band', 'tendon'),
+      s('biceps-femoris', 'Biceps femoris', 'muscle', [0, 0.05, 0.45, 0.95]),
+      s('semitendinosus', 'Semitendinosus', 'muscle', [0.55, 0.05, 0.9, 0.95]),
+      s('semimembranosus', 'Semimembranosus', 'muscle', [0.7, 0.2, 1, 0.95]),
+      s('hamstring-mid', 'Hamstring belly', 'muscle', [0.2, 0.3, 0.85, 0.75]),
+      s('it-band-back', 'IT band', 'tendon', [0, 0, 0.2, 1]),
     ],
   },
   {
     id: 'knee-back', view: 'back', label: 'Knee, back', box: [232, 566, 380, 616], sided: true,
     structures: [
-      s('popliteal', 'Popliteal fossa', 'other'), s('hamstring-insertion', 'Hamstring insertion', 'tendon'),
-      s('gastroc-origin', 'Gastrocnemius origin', 'tendon'), s('bakers', 'Baker’s cyst', 'other'),
-      s('pcl', 'PCL', 'other'),
+      s('popliteal', 'Popliteal fossa', 'other', [0.25, 0.25, 0.8, 0.75]),
+      s('hamstring-insertion', 'Hamstring insertion', 'tendon', [0.15, 0, 0.95, 0.35]),
+      s('gastroc-origin', 'Gastrocnemius origin', 'tendon', [0.2, 0.65, 0.9, 1]),
+      s('bakers', 'Baker’s cyst', 'other', [0.55, 0.3, 0.9, 0.7]),
+      s('pcl', 'PCL', 'other', [0.35, 0.35, 0.7, 0.7]),
     ],
   },
   {
     id: 'calf', view: 'back', label: 'Calf', box: [232, 612, 380, 722], sided: true,
     structures: [
-      s('gastrocnemius', 'Gastrocnemius', 'muscle'),
-      s('gastroc-medial', 'Medial gastrocnemius', 'muscle'),
-      s('soleus', 'Soleus', 'muscle'),
-      s('posterior-compartment', 'Deep posterior compartment', 'other'),
-      s('tib-post', 'Tibialis posterior', 'muscle'),
+      s('gastrocnemius', 'Gastrocnemius', 'muscle', [0.1, 0, 0.95, 0.6]),
+      s('gastroc-medial', 'Medial gastrocnemius', 'muscle', [0.55, 0, 0.95, 0.55]),
+      s('soleus', 'Soleus', 'muscle', [0.15, 0.45, 0.9, 0.95]),
+      s('posterior-compartment', 'Deep posterior compartment', 'other', [0.3, 0.3, 0.85, 0.9]),
+      s('tib-post', 'Tibialis posterior', 'muscle', [0.6, 0.35, 0.95, 0.9]),
     ],
   },
   {
     id: 'achilles', view: 'back', label: 'Achilles', box: [232, 718, 380, 762], sided: true,
     structures: [
-      s('achilles-mid', 'Achilles, mid-portion', 'tendon'),
-      s('achilles-insertion', 'Achilles insertion', 'tendon'),
-      s('retrocalcaneal', 'Retrocalcaneal bursa', 'other'),
-      s('calcaneus', 'Calcaneus', 'bone'),
+      s('achilles-mid', 'Achilles, mid-portion', 'tendon', [0.3, 0.1, 0.75, 0.6]),
+      s('achilles-insertion', 'Achilles insertion', 'tendon', [0.3, 0.6, 0.75, 1]),
+      s('retrocalcaneal', 'Retrocalcaneal bursa', 'other', [0.35, 0.65, 0.8, 0.95]),
+      s('calcaneus', 'Calcaneus', 'bone', [0.25, 0.75, 0.85, 1]),
     ],
   },
   {
     id: 'foot-back', view: 'back', label: 'Heel and sole', box: [228, 758, 384, 800], sided: true,
     structures: [
-      s('plantar-fascia', 'Plantar fascia', 'tendon'), s('heel-pad', 'Heel pad', 'other'),
-      s('heel-spur', 'Heel / calcaneal spur', 'bone'), s('arch', 'Arch', 'other'),
+      s('plantar-fascia', 'Plantar fascia', 'tendon', [0.2, 0.3, 0.9, 0.9]),
+      s('heel-pad', 'Heel pad', 'other', [0.25, 0, 0.85, 0.45]),
+      s('heel-spur', 'Heel / calcaneal spur', 'bone', [0.35, 0.1, 0.8, 0.5]),
+      s('arch', 'Arch', 'other', [0.45, 0.4, 1, 0.95]),
     ],
   },
 ];
@@ -411,3 +483,62 @@ export function troublePoints(entries) {
     .map((r) => ({ ...r, mean: r.total / r.count, label: describeSite(r) }))
     .sort((a, b) => b.count - a.count || b.worst - a.worst);
 }
+
+/**
+ * The half of a zone that belongs to one side of the body, in viewBox
+ * coordinates. For limb zones the medial edge is the torso boundary
+ * (`outsideOnly`) rather than the centreline, so an arm's "inner" edge is the
+ * inside of the arm and not the middle of the chest.
+ *
+ * Returns { box, flip }. `flip` is true when the limb runs medial-to-lateral
+ * left-to-right on screen, which is how a structure's lateral/medial fractions
+ * get applied to the correct end.
+ */
+export function limbBox(view, zone, side) {
+  const [x0, y0, x1, y1] = zone.box;
+  if (zone.sided === false || side !== 'left' && side !== 'right') {
+    return { box: [x0, y0, x1, y1], flip: false };
+  }
+  const centre = Math.min(x1, Math.max(x0, CENTERLINE[view]));
+  const [t0, t1] = zone.outsideOnly || [centre, centre];
+  // The front view is a mirror, so the athlete's right sits on the viewer's left.
+  const viewerLeft = MIRRORED[view] ? side === 'right' : side === 'left';
+  return viewerLeft
+    ? { box: [x0, y0, Math.max(x0, t0), y1], flip: false }
+    : { box: [Math.min(x1, t1), y0, x1, y1], flip: true };
+}
+
+/**
+ * The rectangle a structure occupies, in viewBox coordinates. Structure areas
+ * are stored as fractions of the limb with x running lateral to medial, so one
+ * definition lights up the right part of either arm or leg. A structure with no
+ * area of its own lights up its whole side of the zone, which is the honest
+ * answer when there is no smaller region to point at.
+ */
+export function structureArea(view, zoneId, structureId, side = 'center') {
+  const zone = getZone(view, zoneId);
+  if (!zone) return null;
+  const { box, flip } = limbBox(view, zone, side);
+  const [lx0, ly0, lx1, ly1] = box;
+  const st = structureId ? zone.structures.find((x) => x.id === structureId) : null;
+  if (!st?.area) return [lx0, ly0, lx1, ly1];
+  const [fx0, fy0, fx1, fy1] = st.area;
+  const w = lx1 - lx0;
+  const h = ly1 - ly0;
+  return [
+    flip ? lx1 - fx1 * w : lx0 + fx0 * w,
+    ly0 + fy0 * h,
+    flip ? lx1 - fx0 * w : lx0 + fx1 * w,
+    ly0 + fy1 * h,
+  ];
+}
+
+/** The same, straight from a stored site. */
+export const siteArea = (site, structureId = site?.structure) => (site
+  ? structureArea(site.view, site.zone, structureId, site.side)
+  : null);
+
+/** Which letter goes on which side of the figure on screen. */
+export const sideLetters = (view) => (MIRRORED[view]
+  ? { viewerLeft: 'R', viewerRight: 'L' }
+  : { viewerLeft: 'L', viewerRight: 'R' });
