@@ -8,7 +8,9 @@
 //   npm run coach -- schema plan-week            the JSON shape to reply with
 //   npm run coach -- apply week 2026-W38 plan.json
 //   npm run coach -- apply review digest.txt review.json
+//   npm run coach -- prompt goal-confidence         is this goal still going to happen
 //   npm run coach -- apply plan macro.json
+//   npm run coach -- apply confidence answer.json
 //
 // `prompt` prints the coaching rules plus the athlete's data; hand the reply
 // back as JSON through `apply`, which validates and stores it through exactly
@@ -17,9 +19,10 @@ import fs from 'node:fs';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { db, initDb } from './db.js';
 import {
-  RULES, MacrocycleSchema, ProgramReviewSchema, ReviewSchema, WeekPlanSchema,
-  applyMacrocycle, applyProgramReview, applyReview, applyWeek, buildContext,
-  macroPrompt, programPrompt, reviewPrompt, weekPrompt,
+  RULES, GoalAssessmentSchema, MacrocycleSchema, ProgramReviewSchema, ReviewSchema,
+  WeekPlanSchema, applyGoalAssessment, applyMacrocycle, applyProgramReview, applyReview,
+  applyWeek, buildContext, confidencePrompt, macroPrompt, programPrompt, reviewPrompt,
+  weekPrompt,
 } from './coach.js';
 import { saveDigest } from './db.js';
 import { thisWeek } from '../public/lib/dates.js';
@@ -29,6 +32,7 @@ const SCHEMAS = {
   review: ReviewSchema,
   'build-plan': MacrocycleSchema,
   'program-review': ProgramReviewSchema,
+  'goal-confidence': GoalAssessmentSchema,
 };
 
 initDb();
@@ -129,7 +133,13 @@ switch (command) {
       built = reviewPrompt(userId, text.startsWith('@') ? fs.readFileSync(text.slice(1), 'utf8') : text);
     } else if (kind === 'build-plan') built = macroPrompt(userId);
     else if (kind === 'program-review') built = programPrompt(userId);
-    else die(`Unknown prompt kind "${kind}". Use plan-week, review, build-plan or program-review.`);
+    else if (kind === 'goal-confidence') {
+      built = confidencePrompt(userId, positional[1] || null, {
+        kind: args.includes('--baseline') ? 'baseline' : null,
+      });
+    } else {
+      die(`Unknown prompt kind "${kind}". Use plan-week, review, build-plan, program-review or goal-confidence.`);
+    }
 
     process.stdout.write(`=== COACHING RULES ===\n${RULES}\n\n${built.task}\n\n`);
     process.stdout.write(`=== REPLY WITH JSON MATCHING THIS SCHEMA ===\n${jsonShape(kind === 'plan-week' ? 'plan-week' : kind)}\n`);
@@ -187,6 +197,19 @@ switch (command) {
         process.stdout.write(`    ${d.name}: ${d.decision} - ${d.reason}\n`);
       }
       process.stdout.write('\n');
+    } else if (what === 'confidence') {
+      const data = validate('goal-confidence', readJson(positional[1]));
+      const saved = applyGoalAssessment(userId, positional[2] || null, data, {
+        stage: args.includes('--baseline') ? 'baseline' : 'checkin',
+        by: 'claude-code',
+      });
+      process.stdout.write(`\n  ${saved.confidence}/100 — ${saved.headline}\n`);
+      process.stdout.write(`  evidence: ${saved.evidenceQuality}. Limiter: ${saved.limiter}\n`);
+      for (const d of saved.drivers) {
+        const mark = d.direction === 'supports' ? '+' : '-';
+        process.stdout.write(`    ${mark} [${d.weight}] ${d.factor}: ${d.note}\n`);
+      }
+      process.stdout.write('\n');
     } else if (what === 'digest') {
       const textPath = positional[1];
       const text = textPath && fs.existsSync(textPath) ? fs.readFileSync(textPath, 'utf8').trim() : textPath;
@@ -194,7 +217,7 @@ switch (command) {
       saveDigest(userId, thisWeek(), { week: thisWeek(), text, submittedAt: new Date().toISOString() });
       process.stdout.write(`\n  Stored the digest for ${thisWeek()}.\n\n`);
     } else {
-      die('Usage: apply <week|review|plan|program|digest> ...');
+      die('Usage: apply <week|review|plan|program|digest|confidence> ...');
     }
     break;
   }
@@ -208,12 +231,14 @@ switch (command) {
     npm run coach -- prompt review "<digest text>" | @digest.txt
     npm run coach -- prompt build-plan
     npm run coach -- prompt program-review
-    npm run coach -- schema plan-week | review | build-plan | program-review
+    npm run coach -- prompt goal-confidence [goalId] [--baseline]
+    npm run coach -- schema plan-week | review | build-plan | program-review | goal-confidence
     npm run coach -- apply week <2026-W38> <plan.json>
     npm run coach -- apply review <digest.txt> <review.json>
     npm run coach -- apply plan <macro.json>
     npm run coach -- apply program <program.json>
     npm run coach -- apply digest <digest.txt>
+    npm run coach -- apply confidence <answer.json> [goalId] [--baseline]
 
   Add --user=<id> when the database holds more than one account.
 `);

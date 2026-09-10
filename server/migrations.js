@@ -146,6 +146,28 @@ export const MIGRATIONS = [
     // version 1 without trying to rebuild the tables it already has.
     up: (db) => db.exec(BASELINE),
   },
+  {
+    version: 2,
+    name: 'goal assessments',
+    // Confidence becomes a judgement the coach makes and signs, rather than a
+    // number recomputed from scratch every page load. Keeping every one of
+    // them is the point: a single confidence figure says little, but the same
+    // goal reassessed month after month shows whether it is drifting away.
+    up: (db) => db.exec(`
+      CREATE TABLE IF NOT EXISTS goal_assessments (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        goal_id    TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        confidence INTEGER,
+        doc        TEXT NOT NULL,
+        as_of      TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS goal_assessments_goal
+        ON goal_assessments(user_id, goal_id, created_at DESC);
+    `),
+  },
 ];
 
 export const LATEST = MIGRATIONS.reduce((n, m) => Math.max(n, m.version), 0);

@@ -7,14 +7,15 @@ import { BACKUP_DIR, dailySnapshot, listBackups, snapshot } from './backup.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
 import { stravaRouter, syncUser } from './strava.js';
 import {
-  applyWeekEdit, buildMacrocycle, claudeStatus, DEFAULT_SETTINGS, planWeek,
-  profileFor, reviewDigest, reviewProgram,
+  applyWeekEdit, assessGoal, buildMacrocycle, claudeStatus, confidencePrompt,
+  DEFAULT_SETTINGS, planWeek, profileFor, reviewDigest, reviewProgram,
 } from './coach.js';
 import {
   activityCount, db, dbVersion, deleteActivity, deleteGoal, exportAll, getActivities,
   getActivity, getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState,
   getWeek, getWeeks, initDb, listGoals, newId, pruneExpired, saveActivity, saveFeedback,
   saveGoal, saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
+  latestAssessments, listAssessments,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, offProgramMovements,
@@ -119,7 +120,18 @@ api.get('/data', (req, res) => {
 
 /** The derived fitness layer. Separate because it costs a full-history pass. */
 api.get('/fitness', (req, res) => {
-  res.json(fitnessSnapshot(req.user.id, { goals: listGoals(req.user.id) }));
+  const goals = listGoals(req.user.id);
+  const primary = goals.find((g) => g.primary) || goals[0] || null;
+  const snap = fitnessSnapshot(req.user.id, { goals });
+  // The coach's judgement is the confidence the app shows. The arithmetic one
+  // stays in the payload as `confidenceHeuristic`, clearly named, because a
+  // backtest showed it mostly restates current volume.
+  res.json({
+    ...snap,
+    assessment: primary ? latestAssessments(req.user.id).get(primary.id) || null : null,
+    primaryGoalId: primary?.id || null,
+    confidenceHeuristic: snap.confidence,
+  });
 });
 
 // --- settings and goals ----------------------------------------------------
@@ -467,6 +479,33 @@ api.post('/backups', (_req, res) => {
   const made = snapshot(db, { tag: 'manual' });
   if (made?.error) return res.status(500).json({ error: made.error });
   res.json({ ok: true, path: made.path, bytes: made.bytes, backups: listBackups().length });
+});
+
+/**
+ * Goal confidence.
+ *
+ * Assessing costs a model call, so it is never done on page load — the stored
+ * judgement is what the app shows, and this is what refreshes it.
+ */
+api.post('/goals/:id/assess', async (req, res) => {
+  try {
+    const kind = req.body?.kind === 'baseline' ? 'baseline' : null;
+    res.json(await assessGoal(req.user.id, req.params.id, { kind }));
+  } catch (err) { coachError(res, err); }
+});
+
+api.get('/goals/:id/assessments', (req, res) => {
+  res.json({ assessments: listAssessments(req.user.id, req.params.id, 24) });
+});
+
+/** The evidence on its own, for the offline path and for seeing the inputs. */
+api.get('/goals/:id/evidence', (req, res) => {
+  try {
+    const { evidence, stage, task } = confidencePrompt(req.user.id, req.params.id);
+    res.json({ evidence, stage, prompt: task });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 app.use('/api', api);

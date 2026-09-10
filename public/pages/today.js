@@ -7,7 +7,7 @@ import {
   DOW, MON, daysBetween, isoWeek, mondayOf, parseYmd, ymd,
 } from '../lib/dates.js';
 import {
-  esc, n0, pageHead, violationList,
+  esc, n0, pageHead, shortDate, violationList,
 } from '../lib/ui.js';
 
 let dayOffset = 0;
@@ -89,7 +89,7 @@ function scoreStrip(ctx) {
   if (!f) {
     return '<div class="scores loading"><button id="loadFitness" class="link">Show endurance, speed and goal confidence</button></div>';
   }
-  const conf = f.confidence;
+  const a = f.assessment;
   return '<div class="scores">'
     + scoreMeter(f.endurance?.score, {
       label: 'Endurance',
@@ -101,13 +101,14 @@ function scoreStrip(ctx) {
       color: 'var(--run)',
       caption: f.speed ? `${Math.round((f.speed.inputs.qualityShare || 0) * 100)}% of time above easy` : '',
     })
-    + scoreMeter(conf?.score, {
+    + scoreMeter(a?.confidence, {
       label: 'Goal confidence',
       color: 'var(--swim)',
-      caption: conf?.label || 'no primary goal set',
+      caption: a ? `${a.evidenceQuality} evidence, ${shortDate(a.asOf)}` : 'not assessed yet',
     })
-    + '<p class="scores-note">v0 heuristics, scored against your own history. '
-    + '<a href="/progress" data-link>How these are built</a></p>'
+    + (a?.headline ? `<p class="scores-note lead">${esc(a.headline)}</p>` : '')
+    + '<p class="scores-note">Endurance and speed are computed from your log. Confidence is the '
+    + "coach's judgement. <a href=\"/progress\" data-link>How these are built</a></p>"
     + '</div>';
 }
 

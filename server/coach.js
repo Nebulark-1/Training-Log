@@ -21,6 +21,7 @@ import { config, decrypt } from './config.js';
 import {
   getActivities, getDigests, getFeedback, getPlan, getSettings, getWeek, getWeeks,
   listGoals, logCoachRun, savePlan, saveWeek, saveDigest,
+  listAssessments, saveAssessment,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, movementIndex,
@@ -28,6 +29,7 @@ import {
 } from './program.js';
 import { checkWeekPlan, hasBlocking, newViolations, plannedVolumes } from './guardrails.js';
 import { fitnessSnapshot } from './fitness.js';
+import { evidenceText, goalEvidence } from './evidence.js';
 import { CATALOG, PATTERNS, movementId } from '../public/lib/movements.js';
 import {
   ENDURANCE_SPORTS, formatVolume, isStrength, sportInfo, sportKey,
@@ -177,6 +179,33 @@ export const ProgramReviewSchema = z.object({
     decision: z.string().describe('promote, trial, or leave-out'),
     reason: z.string(),
   })).describe('a verdict on each off-program movement the athlete has logged; empty array if none'),
+});
+
+const DriverSchema = z.object({
+  factor: z.string().describe('The signal, named in a few words: "recurring shin flare", "ramp never held"'),
+  direction: z.enum(['supports', 'threatens']).describe('Does this make the goal more or less likely'),
+  weight: z.enum(['minor', 'moderate', 'major']).describe('How much this one factor moves the answer'),
+  note: z.string().describe('One sentence, citing the number or the date it comes from'),
+});
+
+export const GoalAssessmentSchema = z.object({
+  confidence: z.number().describe(
+    'Odds out of 100 that this goal is met, assuming training continues to go as well as it '
+    + 'realistically can from here. Not a hope, not a motivation tool: a calibrated estimate.',
+  ),
+  evidenceQuality: z.enum(['minimal', 'thin', 'moderate', 'strong']).describe(
+    'How much the log actually supports this answer. Say minimal or thin when it does not.',
+  ),
+  headline: z.string().describe('One sentence an athlete reads first. Plain, specific, no cheerleading.'),
+  limiter: z.string().describe(
+    'The single thing most likely to stop this goal. Name one, the biggest, even when the picture is good.',
+  ),
+  drivers: z.array(DriverSchema).describe('Three to six signals that actually moved the number.'),
+  wouldRaiseIt: z.string().describe('What would have to be true, concretely, for this number to go up.'),
+  wouldLowerIt: z.string().describe('What would drop it, so the athlete knows what to watch for.'),
+  reasoning: z.string().describe(
+    'A short paragraph of coach prose explaining the number. Reference the evidence by value.',
+  ),
 });
 
 // --- client ----------------------------------------------------------------
@@ -964,4 +993,100 @@ export async function reviewProgram(userId) {
   const { schema, task } = programPrompt(userId);
   const out = await ask(userId, 'program-review', schema, task);
   return applyProgramReview(userId, out);
+}
+
+// --- assess a goal ---------------------------------------------------------
+//
+// Confidence used to be arithmetic, and a backtest showed the arithmetic was
+// doing nothing: it correlated with what followed at -0.82 while last month's
+// volume alone managed -0.95. A number built out of current volume can only
+// restate current volume. So the question goes to the coach, with the evidence
+// laid out — and the evidence deliberately leads with what mileage cannot see.
+
+export function confidencePrompt(userId, goalId, { asOf = null, kind = null } = {}) {
+  const goals = listGoals(userId);
+  const goal = goalId ? goals.find((g) => g.id === goalId) : (goals.find((g) => g.primary) || goals[0]);
+  if (!goal) {
+    throw Object.assign(new Error('No goal to assess. Add one in Setup first.'), { status: 400 });
+  }
+  const evidence = goalEvidence(userId, goal, { asOf });
+  const prior = listAssessments(userId, goal.id, 6);
+  // The first assessment of a goal is a different question from the tenth.
+  const stage = kind || (prior.length ? 'checkin' : 'baseline');
+
+  const task = [
+    '=== EVIDENCE ===',
+    evidenceText(evidence),
+    '',
+    prior.length ? '=== YOUR PREVIOUS ASSESSMENTS OF THIS GOAL, NEWEST FIRST ===' : '',
+    ...prior.map((a) => `  ${a.asOf}  ${a.confidence}/100 — ${a.headline}`),
+    prior.length ? '' : '',
+    '=== TASK ===',
+    stage === 'baseline'
+      ? 'This goal is new. Judge whether it is a reasonable thing to aim at, given what the log '
+        + 'shows about this athlete. A goal can be worth setting and still be unlikely; say so if '
+        + 'that is the case, and say what would make it reachable.'
+      : 'This goal is already being trained for. Judge whether it is still on track. You have your '
+        + 'own previous assessments above — if the number moves, say what moved it. A confidence '
+        + 'that drifts down week after week is more useful than one that stays flat out of politeness.',
+    '',
+    'The question is: assuming training goes as well as it realistically can from here, what are',
+    'the odds this goal is met? Not "is the athlete trying hard" and not "would it be nice".',
+    '',
+    'What should move the number down, hard:',
+    '  - a required ramp faster than anything in the log, especially if the target was never held',
+    '  - the same site of pain recurring; recurrence ends goals far more often than fitness does',
+    '  - planned weeks repeatedly not happening — that is the goal failing early, not later',
+    '  - strength stalled across several movements, or RPE rising at unchanged load: recovery is short',
+    '  - effort creeping up for the same pace, or drift worsening on long runs',
+    '',
+    'What should move it up:',
+    '  - a ramp this athlete has demonstrably held before',
+    '  - the plan being executed as written, week after week',
+    '  - the bar still moving and RPE steady',
+    '  - a long runway relative to the gap',
+    '',
+    'On honesty about the evidence: the log is graded above. When it is thin, the confidence should',
+    'sit closer to the middle and `evidenceQuality` should say so — a precise number off six weeks',
+    'of data is a false precision. When it is strong, commit to a real answer.',
+    '',
+    'Do not round to comfortable numbers. 34 and 71 are more useful than 35 and 70.',
+  ].filter((line) => line !== null).join('\n');
+
+  return { kind: 'goal-confidence', schema: GoalAssessmentSchema, task, goal, evidence, stage, prior };
+}
+
+export function applyGoalAssessment(userId, goalId, out, { asOf = null, stage = 'checkin', by = 'claude' } = {}) {
+  const goals = listGoals(userId);
+  const goal = goalId ? goals.find((g) => g.id === goalId) : (goals.find((g) => g.primary) || goals[0]);
+  if (!goal) throw Object.assign(new Error('No goal to attach this to.'), { status: 400 });
+
+  const clamp = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+  const doc = {
+    kind: stage,
+    by,
+    asOf: asOf || new Date().toISOString().slice(0, 10),
+    goalLabel: goal.label || goal.metric || '',
+    confidence: clamp(out.confidence),
+    evidenceQuality: ['minimal', 'thin', 'moderate', 'strong'].includes(out.evidenceQuality)
+      ? out.evidenceQuality : 'thin',
+    headline: String(out.headline || '').slice(0, 300),
+    limiter: String(out.limiter || '').slice(0, 300),
+    drivers: (out.drivers || []).slice(0, 8).map((d) => ({
+      factor: String(d.factor || '').slice(0, 120),
+      direction: d.direction === 'supports' ? 'supports' : 'threatens',
+      weight: ['minor', 'moderate', 'major'].includes(d.weight) ? d.weight : 'moderate',
+      note: String(d.note || '').slice(0, 400),
+    })),
+    wouldRaiseIt: String(out.wouldRaiseIt || '').slice(0, 600),
+    wouldLowerIt: String(out.wouldLowerIt || '').slice(0, 600),
+    reasoning: String(out.reasoning || '').slice(0, 3000),
+  };
+  return saveAssessment(userId, goal.id, doc);
+}
+
+export async function assessGoal(userId, goalId, { asOf = null, kind = null } = {}) {
+  const { schema, task, goal, stage } = confidencePrompt(userId, goalId, { asOf, kind });
+  const out = await ask(userId, 'goal-confidence', schema, task);
+  return applyGoalAssessment(userId, goal.id, out, { asOf, stage });
 }

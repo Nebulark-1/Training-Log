@@ -2,7 +2,7 @@
 import { lineChart, plannedVsActual, scoreMeter, stackedLoad } from '../components/charts.js';
 import { SPORTS, ENDURANCE_SPORTS, formatVolume, sportKey } from '../lib/sports.js';
 import { weekLabel } from '../lib/dates.js';
-import { esc, n0, n1, pageHead, signed, stat } from '../lib/ui.js';
+import { esc, n0, n1, pageHead, shortDate, signed, stat } from '../lib/ui.js';
 
 let sport = 'run';
 
@@ -28,6 +28,52 @@ function scoreDetail(title, score, explanation, rows) {
     + '<div class="tablewrap"><table class="kvtable"><tbody>'
     + rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${v}</td></tr>`).join('')
     + '</tbody></table></div></details>';
+}
+
+
+const WEIGHT_MARK = { major: '\u25CF\u25CF\u25CF', moderate: '\u25CF\u25CF', minor: '\u25CF' };
+
+/**
+ * The coach's read on the goal. This is the confidence the app means — the
+ * arithmetic one is kept further down the page, labelled as what it is.
+ */
+function assessmentBlock(f) {
+  const a = f.assessment;
+  if (!a) {
+    return '<section class="chartblock"><div class="cb-head"><h2>Goal confidence</h2></div>'
+      + '<div class="emptystate"><p>No assessment yet. The coach reads your ramp against the one '
+      + 'you have actually held, whether the plan is being executed, whether the bar is still '
+      + 'moving, and what keeps hurting — then says what the odds are.</p>'
+      + `<div class="btnrow"><button class="solid" id="assessGoal"${f.primaryGoalId ? '' : ' disabled'}>`
+      + 'Assess the goal</button>'
+      + (f.primaryGoalId ? '' : '<span class="mut">Set a primary goal in Setup first.</span>')
+      + '<span class="thinking" id="assessStatus"></span></div></div></section>';
+  }
+
+  const supports = a.drivers.filter((d) => d.direction === 'supports');
+  const threatens = a.drivers.filter((d) => d.direction === 'threatens');
+  const column = (title, list, cls) => (list.length
+    ? `<div class="drv ${cls}"><h4>${title}</h4><ul>`
+      + list.map((d) => `<li><b>${esc(d.factor)}</b> <s>${WEIGHT_MARK[d.weight] || ''}</s>`
+        + `<span>${esc(d.note)}</span></li>`).join('')
+      + '</ul></div>'
+    : '');
+
+  return '<section class="chartblock assessment">'
+    + '<div class="cb-head"><h2>Goal confidence</h2>'
+    + `<span class="cb-note">${esc(a.evidenceQuality)} evidence &middot; ${shortDate(a.asOf)}`
+    + `${a.kind === 'baseline' ? ' &middot; first assessment' : ''}</span></div>`
+    + `<p class="as-head">${esc(a.headline)}</p>`
+    + `<p class="as-limiter"><i>Biggest limiter</i> ${esc(a.limiter)}</p>`
+    + `<div class="drivers">${column('What supports it', supports, 'up')}`
+    + `${column('What threatens it', threatens, 'down')}</div>`
+    + `<p class="as-reason">${esc(a.reasoning)}</p>`
+    + '<div class="grid2 as-moves">'
+    + `<div><i>Would raise it</i><p>${esc(a.wouldRaiseIt)}</p></div>`
+    + `<div><i>Would lower it</i><p>${esc(a.wouldLowerIt)}</p></div></div>`
+    + '<div class="btnrow"><button id="assessGoal">Reassess</button>'
+    + '<span class="thinking" id="assessStatus"></span></div>'
+    + '</section>';
 }
 
 export default {
@@ -90,8 +136,13 @@ export default {
       + '<div class="scores wide">'
       + scoreMeter(f.endurance?.score, { label: 'Endurance', color: 'var(--bike)', caption: 'accumulated aerobic work' })
       + scoreMeter(f.speed?.score, { label: 'Speed', color: 'var(--run)', caption: 'quality of that work' })
-      + scoreMeter(f.confidence?.score, { label: 'Goal confidence', color: 'var(--swim)', caption: f.confidence?.label || 'set a primary goal' })
+      + scoreMeter(f.assessment?.confidence, {
+        label: 'Goal confidence',
+        color: 'var(--swim)',
+        caption: f.assessment ? `${f.assessment.evidenceQuality} evidence` : 'not assessed yet',
+      })
       + '</div>'
+      + assessmentBlock(f)
 
       + '<section class="chartblock">'
       + `<div class="cb-head"><h2>Weekly ${esc(info.label.toLowerCase())} volume</h2>`
@@ -163,12 +214,12 @@ export default {
         + 'pace at a given heart rate is improving, and whether best efforts are trending faster. Volume '
         + 'alone cannot move this.',
         Object.entries(f.speed?.inputs || {}).map(([k, v]) => [k, esc(typeof v === 'object' ? JSON.stringify(v) : String(v))]))
-      + scoreDetail('Goal confidence', f.confidence,
-        'The odds of arriving, given the training that exists. Volume goals compare the ramp still '
-        + 'required against the ramp you have actually sustained; performance goals compare a projected '
-        + 'time against the target. Both are penalized by logged pain, because that is the most common '
-        + 'reason a plan fails. Heuristic, not a validated model.',
-        Object.entries(f.confidence?.inputs || {}).map(([k, v]) => [k, esc(String(v))]));
+      + scoreDetail('Confidence, the arithmetic version', f.confidenceHeuristic,
+        'Kept for comparison, and no longer what the app shows. Backtesting it against this log found '
+        + 'it correlated with what actually happened at -0.82, while last month\'s volume on its own '
+        + 'managed -0.95 — so it was restating current volume rather than judging anything. Run '
+        + 'npm run backtest to see that for yourself.',
+        Object.entries(f.confidenceHeuristic?.inputs || {}).map(([k, v]) => [k, esc(String(v))]));
   },
 
   async mount(ctx, root) {
@@ -176,7 +227,24 @@ export default {
       try { await ctx.loadFitness(); } catch (err) { ctx.toast(err.message, true); }
       return;
     }
-    root.addEventListener('click', (e) => {
+    root.addEventListener('click', async (e) => {
+      if (e.target.id === 'assessGoal') {
+        const status = root.querySelector('#assessStatus');
+        const goalId = ctx.fitness?.primaryGoalId;
+        if (!goalId) return;
+        e.target.disabled = true;
+        status.className = 'thinking';
+        status.textContent = 'Reading the log\u2026';
+        try {
+          await ctx.api(`/api/goals/${encodeURIComponent(goalId)}/assess`, { method: 'POST', body: {} });
+          await ctx.loadFitness();
+        } catch (err) {
+          e.target.disabled = false;
+          status.className = 'thinking err';
+          status.textContent = err.message;
+        }
+        return;
+      }
       const tab = e.target.closest('[data-sport]');
       if (!tab) return;
       sport = tab.getAttribute('data-sport');

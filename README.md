@@ -43,6 +43,7 @@ before running more than one instance).
 | `server/db.js` | SQLite queries (`node:sqlite`, no native build) |
 | `server/migrations.js` | The schema, versioned — every change ordered and recorded |
 | `server/backup.js` | Snapshots: daily, and before any schema change |
+| `server/evidence.js` | The case for and against a goal, assembled and left unjudged |
 | `server/backtest.js` | Scores the predictions against what actually happened |
 | `server/cli.js` | `npm run coach` — the same loop without an API key |
 | `test/` | `npm test` — the pure modules, no database or network needed |
@@ -192,10 +193,7 @@ or they are a bug.
   above aerobic base, whether easy pace at a given heart rate is improving,
   whether best efforts are trending faster. Six easy hours a day scores high on
   endurance and low here, by design.
-- **Goal confidence** — the odds of arriving. Volume goals compare the ramp
-  still required against the ramp you have actually sustained; race-time goals
-  compare a Riegel projection against the target. Both are penalized by logged
-  pain.
+- **Goal confidence** — no longer a score at all. See below.
 
 Every score is measured **against your own history**, not a population, because
 this app has no population data. Every input is shown on the page next to the
@@ -216,6 +214,45 @@ of the rest:
   early-run drift and one hilly mile move the number more than aerobic fitness
   does. It now wants 50 minutes of steady running, and skips workouts and races
   entirely — those drift by design.
+
+### Goal confidence is a judgement, not a formula
+
+The arithmetic version is still in the code and still on the page, labelled as
+what it is, because it is the reason the rest exists: backtesting found it
+correlated with what actually happened at **-0.82**, while last month's volume
+on its own managed **-0.95**. A number built out of current volume can only
+restate current volume.
+
+So the question goes to the coach. `server/evidence.js` assembles the case and
+reaches no verdict — deliberately leading with what mileage cannot see:
+
+| Evidence | The question it answers |
+|---|---|
+| ramp | Is the required climb one you have ever actually held? |
+| adherence | Are planned weeks happening, or quietly not? |
+| strength | Is the bar still moving, or is RPE rising at the same load? |
+| symptoms | Is the same site coming back? Recurrence ends goals. |
+| fatigue | Is the same pace costing more than it did? |
+| history | How much of this is real, and how much is a small sample? |
+
+The coach reads that and returns a confidence out of 100, the single biggest
+limiter, three to six weighted drivers split into what supports and what
+threatens, and what would move the number either way. Assessments are kept
+rather than replaced: one figure says little, the same goal reassessed month
+after month shows whether it is drifting away.
+
+Two moments matter, and they are different questions. A **baseline** when the
+goal is new asks whether it is a reasonable thing to aim at. A **check-in**
+later asks whether it is still on track, and the coach sees its own previous
+answers, so a number that drifts down has to be explained.
+
+```
+npm run coach -- prompt goal-confidence [goalId] [--baseline]
+npm run coach -- apply confidence <answer.json> [goalId] [--baseline]
+```
+
+Assessing costs a model call, so it never happens on page load. The stored
+judgement is what the app shows; **Reassess** on `/progress` refreshes it.
 
 ### Checking the scores against what happened
 

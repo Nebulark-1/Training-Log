@@ -305,3 +305,38 @@ export function exportAll(userId) {
     sync: getSyncState(userId),
   };
 }
+
+// --- goal assessments ------------------------------------------------------
+// The coach's judgement on a goal, kept rather than replaced. One confidence
+// figure says little; the same goal reassessed over months shows drift.
+export function saveAssessment(userId, goalId, doc) {
+  const id = newId(8);
+  const row = { ...doc, id, goalId, createdAt: nowIso() };
+  db.prepare(`INSERT INTO goal_assessments
+      (id, user_id, goal_id, kind, confidence, doc, as_of, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, userId, goalId, doc.kind || 'checkin',
+      Number.isFinite(doc.confidence) ? Math.round(doc.confidence) : null,
+      JSON.stringify(row), doc.asOf || nowIso().slice(0, 10), nowIso());
+  return row;
+}
+
+export function listAssessments(userId, goalId, limit = 24) {
+  return db.prepare(`SELECT doc FROM goal_assessments WHERE user_id = ? AND goal_id = ?
+                     ORDER BY created_at DESC LIMIT ?`)
+    .all(userId, goalId, limit)
+    .map((r) => parse(r));
+}
+
+export function latestAssessment(userId, goalId) {
+  return listAssessments(userId, goalId, 1)[0] || null;
+}
+
+/** The newest assessment for every goal, for a dashboard that shows them all. */
+export function latestAssessments(userId) {
+  const rows = db.prepare(`SELECT goal_id, doc FROM goal_assessments WHERE user_id = ?
+                           ORDER BY created_at DESC`).all(userId);
+  const out = new Map();
+  for (const r of rows) if (!out.has(r.goal_id)) out.set(r.goal_id, parse(r));
+  return out;
+}
