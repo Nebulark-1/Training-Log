@@ -13,7 +13,7 @@ import {
 import {
   activityCount, db, dbVersion, deleteActivity, deleteGoal, exportAll, getActivities,
   getActivity, getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState,
-  getWeek, getWeeks, listGoals, migration, newId, pruneExpired, saveActivity, saveFeedback,
+  getWeek, getWeeks, initDb, listGoals, newId, pruneExpired, saveActivity, saveFeedback,
   saveGoal, saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
 } from './db.js';
 import {
@@ -493,6 +493,9 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('[uncaught exception]', err);
 });
+
+// Schema first: nothing should read the ledger before it is the right shape.
+const migration = initDb();
 
 pruneExpired();
 setInterval(pruneExpired, 3600_000).unref();

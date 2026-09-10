@@ -15,7 +15,7 @@
 // the same normalizer the API path uses.
 import fs from 'node:fs';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { db } from './db.js';
+import { db, initDb } from './db.js';
 import {
   RULES, MacrocycleSchema, ProgramReviewSchema, ReviewSchema, WeekPlanSchema,
   applyMacrocycle, applyProgramReview, applyReview, applyWeek, buildContext,
@@ -30,6 +30,8 @@ const SCHEMAS = {
   'build-plan': MacrocycleSchema,
   'program-review': ProgramReviewSchema,
 };
+
+initDb();
 
 function die(msg) {
   process.stderr.write(`\n  ${msg}\n\n`);

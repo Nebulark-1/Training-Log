@@ -3,8 +3,10 @@
 // Prints what the scores would have said week by week and how the following
 // weeks actually went, so the confidence number can be judged rather than
 // trusted.
-import { db } from './db.js';
+import { db, initDb } from './db.js';
 import { backtest, buckets } from './backtest.js';
+
+initDb();
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {

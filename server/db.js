@@ -15,10 +15,21 @@ db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
 db.exec('PRAGMA busy_timeout = 5000');
 
-// The schema lives in migrations.js, versioned, so an older ledger is brought
-// forward rather than left quietly mismatched.
-export const migration = migrate(db);
 export const dbVersion = () => schemaVersion(db);
+
+/**
+ * Bring the schema up to date. Call this once, from whatever is starting up.
+ *
+ * Deliberately not done on import. Importing a module should not migrate and
+ * snapshot a database — `npm test` pulls in this file through the fitness and
+ * program modules, and with the migration at the top level that alone was
+ * enough to alter the real ledger.
+ */
+let applied = null;
+export function initDb(opts = {}) {
+  if (!applied) applied = migrate(db, opts);
+  return applied;
+}
 
 export const nowIso = () => new Date().toISOString();
 export const newId = (n = 16) => crypto.randomBytes(n).toString('base64url');
