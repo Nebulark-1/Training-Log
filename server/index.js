@@ -24,6 +24,7 @@ import { hasBlocking } from './guardrails.js';
 import { seedUser } from './seed.js';
 import { isStrength, sportKey } from '../public/lib/sports.js';
 import { movementId } from '../public/lib/movements.js';
+import { describeSite, getZone } from '../public/lib/body.js';
 import {
   daysBetween, isoWeek, mondayOf, parseYmd, thisWeek, weekAdd, ymd,
 } from '../public/lib/dates.js';
@@ -297,20 +298,66 @@ api.put('/feedback/:sessionId', (req, res) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= lo && n <= hi ? n : null;
   };
+  const pain = num(b.pain, 0, 10);
+  const site = pain ? normalizeSite(b.site) : null;
   const doc = {
     sessionId: session.id,
     date: session.date,
     sport: session.sport,
     rpe: num(b.rpe, 1, 10),
     feel: num(b.feel, 1, 5),
-    pain: num(b.pain, 0, 10),
-    painSite: String(b.painSite || '').trim().slice(0, 120) || null,
+    pain,
+    site,
+    // A readable version is kept alongside the structured one: the coaching
+    // context and the guardrail messages read this, and it survives a zone
+    // being re-cut later.
+    painSite: site ? describeSite(site) : (String(b.painSite || '').trim().slice(0, 160) || null),
     notes: String(b.notes || '').trim().slice(0, 4000) || null,
     loggedAt: new Date().toISOString(),
   };
   for (const k of Object.keys(doc)) if (doc[k] == null) delete doc[k];
   saveFeedback(req.user.id, session.id, doc);
   res.json({ ok: true, feedback: doc });
+});
+
+/** A point on the body map, validated against the zone definitions. */
+function normalizeSite(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const view = raw.view === 'back' ? 'back' : 'front';
+  const zone = getZone(view, String(raw.zone || ''));
+  if (!zone) return null;
+  const clamp = (v, hi) => Math.max(0, Math.min(hi, Number(v) || 0));
+  const structure = zone.structures.find((s) => s.id === raw.structure) || null;
+  return {
+    view,
+    x: Math.round(clamp(raw.x, 595.28) * 10) / 10,
+    y: Math.round(clamp(raw.y, 841.89) * 10) / 10,
+    zone: zone.id,
+    zoneLabel: zone.label,
+    side: ['left', 'right', 'center'].includes(raw.side) ? raw.side : 'center',
+    structure: structure?.id || null,
+    structureLabel: structure?.label || null,
+    structureKind: structure?.kind || null,
+    freeText: String(raw.freeText || '').trim().slice(0, 160) || null,
+  };
+}
+
+/** Every mapped pain entry, for the heat map and trouble points. */
+api.get('/injuries', (req, res) => {
+  const from = String(req.query.from || '2000-01-01');
+  const entries = getFeedback(req.user.id, from)
+    .filter((f) => (f.pain ?? 0) > 0)
+    .map((f) => ({
+      date: f.date,
+      pain: f.pain,
+      sport: f.sport,
+      sessionId: f.sessionId,
+      site: f.site || null,
+      painSite: f.painSite || null,
+      notes: f.notes || null,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  res.json({ entries });
 });
 
 api.put('/digests/:week', (req, res) => {

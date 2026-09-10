@@ -7,12 +7,14 @@ import todayPage, { nudgeDay } from './pages/today.js';
 import weekPage from './pages/week.js';
 import strengthPage from './pages/strength.js';
 import progressPage from './pages/progress.js';
+import injuriesPage from './pages/injuries.js';
 import planPage from './pages/plan.js';
 import coachPage from './pages/coach.js';
 import logPage from './pages/log.js';
 import settingsPage from './pages/settings.js';
 
-const PAGES = [todayPage, weekPage, strengthPage, progressPage, planPage, coachPage, logPage, settingsPage];
+const PAGES = [todayPage, weekPage, strengthPage, progressPage, injuriesPage, planPage,
+  coachPage, logPage, settingsPage];
 const BY_PATH = new Map(PAGES.map((p) => [p.path, p]));
 
 const state = {
@@ -52,6 +54,9 @@ async function refresh({ fitness = false } = {}) {
   ]);
   state.data = data;
   state.fitness = fit;
+  // The injuries page reads its own full-history endpoint; a new pain entry
+  // invalidates it.
+  window.__vlInjuries = null;
   render();
 }
 
@@ -86,6 +91,15 @@ const ctx = {
   toast,
   /** Re-draw the current page without refetching. */
   rerender: () => render(),
+  /**
+   * Mapped pain from the loaded window, so the body map can show where things
+   * have hurt before while you are logging a new one.
+   */
+  get painHistory() {
+    return Object.values(state.data?.feedback || {})
+      .filter((f) => (f.pain ?? 0) > 0 && f.site?.x != null)
+      .map((f) => ({ date: f.date, pain: f.pain, site: f.site }));
+  },
 };
 
 let pending = false;

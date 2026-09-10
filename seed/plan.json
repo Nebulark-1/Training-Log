@@ -2,14 +2,14 @@
   "goal": "Build running volume to 75 miles a week and hold it, keeping bike and swim volume in every week.",
   "targetMpw": 75,
   "targetDate": "",
-  "rationale": "Seeded from the twelve-month plan document, which assumes a start near 28 miles a week coming off a knee injury. Running mileage is deliberately flat through the whole second phase and cycling peaks in the middle of the year rather than the end: both look like mistakes on paper and are the reason the plan works. These week targets are a placeholder until a Strava pull shows where the volume actually is, then rebuild the plan from that.",
+  "rationale": "Seeded from the twelve-month plan document, which assumes a start near 28 miles a week coming back from a layoff. Running mileage is deliberately flat through the whole second phase and cycling peaks in the middle of the year rather than the end: both look like mistakes on paper and are the reason the plan works. These week targets are a placeholder until a sync shows where the volume actually is, then rebuild the plan from that.",
   "phases": [
     {
       "n": 1,
       "name": "Rebuild",
       "weekFrom": 1,
       "weekTo": 13,
-      "job": "Get back to volume you already know you can hold, and prove the knee tolerates it. This phase is about tissue, not fitness."
+      "job": "Get back to volume you already know you can hold, and prove the tissue tolerates it. This phase is about tissue, not fitness."
     },
     {
       "n": 2,

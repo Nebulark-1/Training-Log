@@ -1,5 +1,6 @@
 // Sheets for endurance sessions: the post-session note, and logging something
 // Strava did not record.
+import { mountBodyMap } from './bodymap.js';
 import { SPORTS, sportKey } from '../lib/sports.js';
 import {
   closeSheet, comma, esc, FEEL, hm, longDate, mmss, n0, n1, openSheet, toast,
@@ -75,8 +76,7 @@ export function openFeedback(session, ctx) {
     + scaleRow('rpe', 'Effort (RPE)', 1, 10, f.rpe, '1 walking, 5 steady, 7 working, 10 all out')
     + scaleRow('feel', 'How the body felt', 1, 5, f.feel, '', FEEL)
     + scaleRow('pain', 'Pain', 0, 10, f.pain, 'Above 3 means holding volume, not adding.')
-    + '<div class="field"><label for="fbSite">Where, if anywhere</label>'
-    + `<input type="text" id="fbSite" value="${esc(f.painSite || '')}" placeholder="left knee, medial"></div>`
+    + '<div class="painmap" id="painMap" hidden></div>'
     + '<div class="field"><label for="fbNotes">Notes for the coach</label>'
     + `<textarea id="fbNotes" placeholder="Terrain, sleep, fuel, how it changed through the session.">${esc(f.notes || '')}</textarea></div>`
     + '<div class="btnrow"><button class="solid" id="fbSave">Save note</button>'
@@ -84,6 +84,18 @@ export function openFeedback(session, ctx) {
     + '<span class="thinking" id="fbStatus"></span></div>',
     (root) => {
       const chosen = { rpe: f.rpe ?? null, feel: f.feel ?? null, pain: f.pain ?? null };
+      // The body map only earns its space when something actually hurts.
+      const mapSlot = root.querySelector('#painMap');
+      let bodyMap = null;
+      const syncMap = () => {
+        const hurts = (chosen.pain ?? 0) > 0;
+        mapSlot.hidden = !hurts;
+        if (hurts && !bodyMap) {
+          bodyMap = mountBodyMap(mapSlot, { site: f.site || null, history: ctx.painHistory || [] });
+        }
+      };
+      syncMap();
+
       root.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-val]');
         if (b) {
@@ -94,6 +106,7 @@ export function openFeedback(session, ctx) {
           wrap.querySelectorAll('button').forEach((x) => {
             x.setAttribute('aria-pressed', String(Number(x.getAttribute('data-val')) === chosen[key]));
           });
+          if (key === 'pain') syncMap();
           return;
         }
         if (e.target.id !== 'fbSave') return;
@@ -105,7 +118,7 @@ export function openFeedback(session, ctx) {
             method: 'PUT',
             body: {
               ...chosen,
-              painSite: root.querySelector('#fbSite').value,
+              site: chosen.pain > 0 ? bodyMap?.get() ?? null : null,
               notes: root.querySelector('#fbNotes').value,
             },
           });

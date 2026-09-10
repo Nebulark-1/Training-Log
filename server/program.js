@@ -56,7 +56,7 @@ export function defaultProgram(today = new Date().toISOString()) {
     sessions: [
       {
         id: 'A',
-        name: 'Knee rehab + posterior chain',
+        name: 'Tendon prep + posterior chain',
         focus: 'Tendon load first, then load the hinge',
         dayHint: 'Tue',
         movements: [
@@ -70,10 +70,10 @@ export function defaultProgram(today = new Date().toISOString()) {
       {
         id: 'B',
         name: 'Single-leg + trunk',
-        focus: 'Knee control under control, not under load',
+        focus: 'Control first, load second',
         dayHint: 'Thu',
         movements: [
-          mv('step-down', 3, '8 each', 'Slow, knee tracking over the middle toes. The knee’s main rehab lift.'),
+          mv('step-down', 3, '8 each', 'Slow and controlled, knee tracking over the middle toes.'),
           mv('split-squat', 3, '8 each', 'Dumbbells. Add load once eight is easy on both sides.'),
           mv('single-leg-calf-raise', 3, '10 each', 'Bodyweight to start.'),
           mv('side-plank', 2, '30 sec each', 'Hips stacked, no sag.'),

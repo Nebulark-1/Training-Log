@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS = {
   targetMpw: 75,
   targetDate: '',
   keep: '2 bike sessions, 1-2 swims, 2-3 strength sessions',
-  limits: 'Monday stays off running. Stop and hold volume if knee pain changes gait, rises during a run, swells the next morning, hurts at rest, or passes 3/10.',
+  limits: 'Monday stays off running. Stop and hold volume if pain changes how you move, rises during a session, swells the next morning, hurts at rest, or passes 3/10.',
   restDays: ['Mon'],
 };
 
@@ -55,7 +55,10 @@ export const RULES = [
   '- A great-feeling week is a reason to hold the planned progression, not to exceed it. When you hold them back, say so plainly and say why.',
   '- At most two hard days in a week, never on consecutive days.',
   "- Keep the athlete's stated minimums in the other sports unless the primary goal is genuinely at risk. Total load injures people, not one sport's load alone.",
-  '- Injury signals override the plan: pain that changes gait, pain that rises during a session, swelling the next morning, pain at rest, or pain above 3/10. Any of those means holding volume, not adding, and advising a physio. Never program through them.',
+  '- Injury signals override the plan: pain that changes how they move, pain that rises during a session, swelling the next morning, pain at rest, or pain above 3/10. Any of those means holding volume, not adding, and advising a physio. Never program through them.',
+  '- Pain is logged against a specific place on the body. Use it: name the structure the athlete',
+  '  named, notice when the same site keeps recurring, and adjust the work that loads THAT tissue',
+  '  rather than cutting volume everywhere. A recurring site is a different problem from a new ache.',
   '- You are a coach, not a clinician. Name symptoms and refer; do not diagnose.',
   '',
   'Strength works differently from endurance, and the difference matters:',

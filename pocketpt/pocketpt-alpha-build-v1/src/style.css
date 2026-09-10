@@ -1,0 +1,242 @@
+html{
+}
+
+h1{
+    color: white;
+    padding: 20px;
+}
+
+head{
+	position: absolute;
+}
+
+body{
+    background-color: #1f1f1f;
+    display: flex;
+    justify-content: center;
+}
+
+#navigator{
+    position: absolute;
+    color:#c5c5c5;
+    background-color: #4d4848;
+    width: 100%;
+    top: 0;
+    padding: 10px 0px 10px 20px;
+    display: flex;
+    justify-content: space-evenly;
+}
+
+a:link{
+    color: #c5c5c5;}
+
+a:visited{
+    color: #c5c5c5;}
+
+a:hover{
+    color:#242222;}
+
+
+
+path:not(.nonmusclepath, .bellybutton, .nonmuscles, .nonmuscles2, .nonmuscles3, .toes1, .toes2, .head, .st6, .st13, .st14, .st16, .st18, .st20, .st22, .sst19, .sst3):hover {
+    fill: #ff9f00;
+}
+
+path:is( .nonmuscles, .nonmuscles2, .nonmuscles3, .toes1, .toes2, .head, .sst14, .sst17, .sst18, .sst30, .sst9, .sst4, .sst24, .sst25):hover{
+    fill: #c0c0c0;
+}
+
+#maleavatarfront{
+    position: relative;
+	justify-self: center;
+    height: 600;
+    width: 480px;
+	top: 0;
+	right: 0;
+}
+
+#muscleBox{
+	position: absolute;
+	top: 0;
+	right: 0;
+	color: white;
+	text-align: right;
+}
+
+#muscleSelectBox{
+	font-size: 1.5em;
+	color: white;
+	text-align: right;
+	margin-top: 5px;
+}
+
+#muscleName{
+	position: absolute;
+	top: 25;
+	right: 0;
+	color: white;
+	max-width:  200px;
+	text-align: right;
+}
+
+#majorSelectorButton{
+	position: absolute;
+	top: 225px;
+}
+
+#majorSelectorButton:hover {background-color: rgb(18, 174, 221);}
+
+#resetButton{
+	position: absolute;
+	top: 200px;}
+
+#resetButton:hover{
+	background-color: rgb(207, 0, 0);
+	}
+
+.upperbody{fill:#1d53c2}
+	.upperbody.clicked{fill: #ff9f00;}
+	.upperbody.clicked:hover {fill: #ff9f0065;}
+
+.lowerbody{fill:#1d53c2}
+	.lowerbody.clicked{fill: #ff9f00;}
+	.lowerbody.clicked:hover {fill: #ff9f0065;}
+
+.backupperbody{fill:#1d53c2}
+	.backupperbody.clicked{fill: #ff9f00;}
+	.backupperbody.clicked:hover {fill: #ff9f0065;}
+
+.backlowerbody{fill:#1d53c2}
+	.backlowerbody.clicked{fill: #ff9f00;}
+	.backlowerbody.clicked:hover {fill: #ff9f0065;}
+
+.chest{fill:#1d53c2;}
+  	.chest.clicked  {fill: #ff9f00;}
+  	.chest.clicked:hover {fill: #ff9f0065;}
+
+.triceps{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.triceps.clicked  {fill: #ff9f00;}
+	.triceps.clicked:hover {fill: #ff9f0065;}
+
+.forearms{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	/* forearms and triceps are the same */
+
+.shoulders{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.shoulders.clicked  {fill: #ff9f00;}
+	.shoulders.clicked:hover {fill: #ff9f0065;}
+
+.biceps{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	/* biceps and shoulders are the same */
+
+.waist{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-linecap:round;stroke-miterlimit:10;}
+	.waist.clicked  {fill: #ff9f00;}
+	.waist.clicked:hover {fill: #ff9f0065;}
+
+.abs{fill:#1d53c2;stroke:#020203;stroke-width:2.5869;stroke-miterlimit:10;}
+	.abs.clicked  {fill: #ff9f00;}
+	.abs.clicked:hover {fill: #ff9f0065;}
+
+.bellybutton{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	/* non clickerable */
+
+.obliques{fill:#1d53c2;stroke:#020203;stroke-width:2;stroke-miterlimit:10;}
+	.obliques.clicked  {fill: #ff9f00;}
+	.obliques.clicked:hover {fill: #ff9f0065;}
+	
+/* .obliques2{fill:#1d53c2;stroke:#020203;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;}
+	.obliques2.clicked  {fill: #ff9f00;}
+	.obliques2.clicked:hover {fill: #ff9f0065;} */
+
+.trapezius{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.trapezius.clicked  {fill: #ff9f00;}
+	.trapezius.clicked:hover {fill: #ff9f0065;}
+	
+.adductors{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.adductors.clicked  {fill: #ff9f00;}
+	.adductors.clicked:hover {fill: #ff9f0065;}
+
+.quads{fill:#1d53c2;stroke:#020203;stroke-width:3}
+	.quads.clicked  {fill: #ff9f00;}
+	.quads.clicked:hover {fill: #ff9f0065;}
+
+.calves{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.calves.clicked  {fill: #ff9f00;}
+	.calves.clicked:hover {fill: #ff9f0065;}
+
+.legs3{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.legs3.clicked  {fill: #ff9f00;}
+	.legs3.clicked:hover {fill: #ff9f0065;}
+
+
+
+.head{fill:#001f5f;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+.nonmuscles{fill:#001f5f;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+.nonmuscles2{fill:#001f5f;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+.nonmuscles3{fill:#001f5f;stroke:#020203;stroke-miterlimit:10;}
+.nonmusclepath {stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+
+.st18{fill:none;stroke:#020203;stroke-width:3;stroke-linecap:round;stroke-miterlimit:10;}
+.st13{fill:#020203;stroke:#020203;stroke-miterlimit:10;}
+.st6{fill:#020203;}
+.st14{stroke:#020203;stroke-miterlimit:10;}
+.st16{fill:#020203;stroke:#020203;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;}
+.st22{stroke:#020203;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;}
+.toes1{fill:#001f5f;stroke:#020203;stroke-width:1.5;stroke-miterlimit:10;}
+.st20{fill:#ffffff;stroke:#020203;stroke-width:2;stroke-miterlimit:10;}
+.toes2{fill:#001f5f;stroke:#020203;stroke-width:2;stroke-miterlimit:10;}
+
+/* phase2 */
+
+#maleavatarback{
+    position: relative;
+    height: 600;
+    width: 480px;
+	top: 0;
+	right: 0;
+	
+    
+}
+	.sst0{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst1{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst2{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst3{fill:none;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst4{fill:#001f5f;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst5{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst6{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst7{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst8{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst9{fill:#001f5f;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst10{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst11{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst12{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst13{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst14{fill:#001f5f;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst15{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst16{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst17{fill:#001f5f;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst18{fill:#001f5f;}
+	.sst19{fill:#020203;}
+	.sst20{fill:none;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst21{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst22{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst23{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst24{fill:#001f5f;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst25{fill:#001f5f;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst26{fill:#1d53c2;stroke:#020203;stroke-width:4;stroke-miterlimit:10;}
+	.sst27{fill:#1d53c2;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst28{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst29{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst30{fill:#001f5f;stroke:#020203;stroke-width:5;stroke-miterlimit:10;}
+	.sst31{fill:#1d53c2;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+	.sst32{fill:#1d53c2;stroke:#1E1E1C;stroke-miterlimit:10;}
+	.sst33{fill:#1E1E1C;stroke:#020203;stroke-width:3;stroke-miterlimit:10;}
+
+    #muscleSelector{
+        position: relative;
+		border-width: 2px;
+		border-style: solid;
+		max-width: 480px;
+		top: 32px;
+    }
+
+	

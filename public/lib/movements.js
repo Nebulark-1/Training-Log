@@ -11,7 +11,7 @@
 
 export const PATTERNS = {
   hinge: { label: 'Hinge', required: true, note: 'Posterior chain under real load. The single most valuable pattern for a runner.' },
-  'single-leg': { label: 'Single leg', required: true, note: 'Running is a single-leg activity. This is where knee control is built.' },
+  'single-leg': { label: 'Single leg', required: true, note: 'Running happens on one leg at a time. This is where control of the whole chain is built.' },
   calf: { label: 'Calf and Achilles', required: true, note: 'Takes the running load first and complains first.' },
   core: { label: 'Trunk', required: true, note: 'Anti-rotation and anti-extension, not sit-ups.' },
   squat: { label: 'Squat', required: false, note: 'Useful, but the hinge and single-leg work matter more.' },

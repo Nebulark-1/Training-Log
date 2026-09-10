@@ -43,9 +43,10 @@ before running more than one instance).
 | `server/db.js` | SQLite schema and queries (`node:sqlite`, no native build) |
 | `server/cli.js` | `npm run coach` — the same loop without an API key |
 | `public/app.js` | App shell and router |
-| `public/pages/` | One module per page: today, week, strength, progress, plan, coach, log, settings |
+| `public/pages/` | One module per page: today, week, strength, progress, injuries, plan, coach, log, settings |
 | `public/components/` | Lift log, session sheets, charts |
-| `public/lib/` | Shared with the server: dates, sports, movements, UI helpers |
+| `public/lib/` | Shared with the server: dates, sports, movements, body zones, UI helpers |
+| `pocketpt/` | The upstream body-map pen, kept with its MIT licence |
 | `seed/` | The starting plan, from the original 12-month plan document |
 
 `public/lib/` is imported by both sides, so ISO week keys, sport units and the
@@ -120,6 +121,42 @@ doing — is recorded as off-program and queued on the Strength page. At the nex
 review the coach rules on each one: promote it into the program, give it a trial
 with a review date, or leave it out and say why. Doing something once is not a
 reason to program it.
+
+## Where it hurts
+
+Pain is logged against a place on the body, not a sentence. When you record
+pain above zero, a front-and-back figure appears; tap the spot and the app
+works out the zone and — because the front view is a mirror — which side of
+*your* body that is. It then offers the structures in that zone so you can be
+specific: not "shin" but *tibialis anterior, upper third*, *medial tibial
+border*, or *anterior compartment*. Muscles, tendons, bones, joints and nerves
+are all listed, colour-keyed by kind, and there is a free-text box for anything
+the list misses.
+
+The click stores a **point**, not just a label. That is what makes `/injuries`
+possible: a heat map of everywhere that has ever hurt, and a trouble-points
+table that groups by side and structure so three entries on the same spot read
+as a pattern rather than three separate bad days. It also means a zone can be
+re-cut later without invalidating old entries.
+
+Pain of zero shows no map at all — nothing to point at.
+
+| Where | What |
+| --- | --- |
+| `public/lib/body.js` | Zones and their structures, defined over the silhouette's viewBox |
+| `public/lib/silhouette.js` | The artwork (generated — see below) |
+| `public/components/bodymap.js` | The picker and the heat map |
+| `public/pages/injuries.js` | Heat map, trouble points, history |
+
+The silhouette comes from the [PocketPT alpha
+pen](https://codepen.io/Johny-Bravo-the-solid/pen/mdvRWbO) by Johny Bravo, MIT
+licensed — the original is kept in `pocketpt/` with its licence. The pen's own
+classes are muscle groups, which are coarser and less consistent than this
+needs, so they survive only as a hover hint; meaning comes from the zone map
+instead. `silhouette.js` is generated from the pen, not hand-edited.
+
+Nothing here diagnoses anything. It records where it hurt and how often, which
+is what makes a pattern visible and a conversation with a physio shorter.
 
 ## Guardrails
 
@@ -228,8 +265,8 @@ configured, and the server is bound to a loopback address.
 ## Using it
 
 **Every session** — the day's prescription sits at the top. Once Strava has the
-activity, "How did it feel?" opens a note: RPE, how the body felt, knee pain
-0–10 and where, plus free text. Those notes are what make the coaching worth
+activity, "How did it feel?" opens a note: RPE, how the body felt, pain 0–10,
+plus free text. Log any pain above zero and a body map appears (see below). Those notes are what make the coaching worth
 anything; the numbers alone can't tell a good week from a barely-survived one.
 
 **Every Monday** — write the digest in the Coach section and send it. Claude
@@ -243,9 +280,9 @@ actually show, rather than from an assumption about where you should be.
 
 The coach works under fixed rules: volume rises at most ~10% or 5 miles a week,
 every fourth week deloads, at most two hard running days and never back to back,
-and any of the knee red flags (gait change, pain rising during a run,
-next-morning swelling, pain at rest, anything above 3/10) drops volume back and
-refers you out rather than programming through it. A week that felt great is
+and any of the red flags (pain that changes how you move, pain rising during a
+session, next-morning swelling, pain at rest, anything above 3/10) drops volume
+back and refers you out rather than programming through it. A week that felt great is
 treated as a reason to hold the progression, not to exceed it.
 
 ## If you open this up to other people

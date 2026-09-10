@@ -9,7 +9,7 @@
   },
   "deload": false,
   "verdict": null,
-  "focus": "Prove the knee tolerates five running days at 28 miles.",
+  "focus": "Prove five running days at 28 miles is tolerated.",
   "coachNote": "This week is the plan document’s opening week, seeded so the ledger isn’t empty. Five running days, all easy, nothing over nine miles, Monday off running as it will be all year.\n\nThe three strength sessions come from your core program rather than from this week: the same movements will be here next month, loaded a little heavier. The first time you do each lift it is a calibration set — work up to the rep target at about RPE 7 and log what you actually used. Progression takes over from there without anyone having to decide anything.\n\nBefore this becomes a real plan it needs your actual history. Sync Strava, then rebuild the plan so the phases and week targets start from the volume you are genuinely carrying.",
   "adjustments": [],
   "days": [
@@ -37,12 +37,12 @@
           "miles": 5,
           "minutes": 45,
           "intensity": "easy",
-          "detail": "Conversational the whole way. If the knee talks, cut it short and say so in the note.",
+          "detail": "Conversational the whole way. If something starts talking, cut it short and log where it was.",
           "optional": false
         },
         {
           "sport": "lift",
-          "title": "Knee rehab + posterior chain",
+          "title": "Tendon prep + posterior chain",
           "minutes": 45,
           "intensity": "heavy",
           "detail": "Rehab-led. This is the priority session of the week, not an accessory.",
@@ -154,7 +154,7 @@
           "title": "75 min easy",
           "minutes": 75,
           "intensity": "easy",
-          "detail": "Longest ride of the week. Aerobic load the knee doesn't pay for.",
+          "detail": "Longest ride of the week. Aerobic load your legs don't pay for.",
           "optional": false
         }
       ]

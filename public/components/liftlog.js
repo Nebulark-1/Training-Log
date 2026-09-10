@@ -4,6 +4,7 @@
 // prefilled from the prescription, and you correct what actually happened.
 // That is what makes estimated 1RM, progression and honest history possible —
 // a single "3x5 @ 225" row cannot tell you the third set only got three.
+import { mountBodyMap } from './bodymap.js';
 import { CATALOG, bestSet, e1rm, guessPattern, movementId } from '../lib/movements.js';
 import { closeSheet, esc, longDate, n0, openSheet, toast } from '../lib/ui.js';
 
@@ -115,8 +116,7 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
     + '<div class="lx-fb">'
     + '<div class="field"><label for="lfPain">Any pain? 0-10</label>'
     + `<input type="number" id="lfPain" min="0" max="10" value="${esc(fb.pain ?? '')}" placeholder="0"></div>`
-    + '<div class="field"><label for="lfSite">Where</label>'
-    + `<input type="text" id="lfSite" value="${esc(fb.painSite || '')}" placeholder="left knee, medial"></div>`
+    + '<div class="field" style="grid-column:1/-1"><div class="painmap" id="liftPainMap" hidden></div></div>'
     + '<div class="field" style="grid-column:1/-1"><label for="lfNotes">Notes for the coach</label>'
     + `<textarea id="lfNotes" placeholder="What felt strong, what felt off, anything you changed.">${esc(fb.notes || '')}</textarea></div>`
     + '</div>'
@@ -125,6 +125,19 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
     + '<span class="thinking" id="lxStatus"></span></div>',
     (root) => {
       const bodyEl = root.querySelector('#lxBody');
+
+      // Same rule as the endurance sheet: no pain, no map.
+      const mapSlot = root.querySelector('#liftPainMap');
+      let bodyMap = null;
+      const syncMap = () => {
+        const hurts = Number(root.querySelector('#lfPain').value) > 0;
+        mapSlot.hidden = !hurts;
+        if (hurts && !bodyMap) {
+          bodyMap = mountBodyMap(mapSlot, { site: fb.site || null, history: ctx.painHistory || [] });
+        }
+      };
+      syncMap();
+      root.querySelector('#lfPain').addEventListener('input', syncMap);
 
       // Pull every input back into state before any structural re-render.
       const sync = () => {
@@ -237,7 +250,7 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
           await ctx.api(`/api/sessions/${encodeURIComponent(session.id)}`, { method: 'PATCH', body: { lifts } });
           const pain = Number(root.querySelector('#lfPain').value);
           const notes = root.querySelector('#lfNotes').value.trim();
-          const site = root.querySelector('#lfSite').value.trim();
+          const site = pain > 0 ? bodyMap?.get() ?? null : null;
           if (rpes.length || notes || site || Number.isFinite(pain)) {
             await ctx.api(`/api/feedback/${encodeURIComponent(session.id)}`, {
               method: 'PUT',
@@ -245,7 +258,7 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
                 rpe: rpes.length ? Math.max(...rpes) : fb.rpe ?? null,
                 feel: fb.feel ?? null,
                 pain: Number.isFinite(pain) ? pain : null,
-                painSite: site,
+                site,
                 notes,
               },
             });

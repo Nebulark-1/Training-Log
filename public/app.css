@@ -745,3 +745,67 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
   .movegrid{grid-template-columns:repeat(4,1fr)}
   .m-act{width:auto}
 }
+
+/* ---- the body map -------------------------------------------------------- */
+.painmap{margin:4px 0 18px}
+.bodymap{border:1px solid var(--line); background:var(--card); padding:14px 16px 16px}
+.bm-views{display:flex; gap:10px; justify-content:center; align-items:flex-start}
+.bm-view{flex:0 1 190px; max-width:190px; text-align:center; position:relative}
+.bm-view.pick .bm-svg{cursor:crosshair}
+.bm-svg{width:100%; height:auto; display:block; touch-action:manipulation}
+.bm-viewlabel{
+  display:block; margin-top:4px; font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--mut);
+}
+/* The silhouette is artwork, so it is drawn as one flat shape. */
+.bm-path{fill:var(--ghost); stroke:var(--line); stroke-width:.6; transition:fill .12s ease}
+.bm-view.pick:hover .bm-path{fill:var(--ghost2)}
+@media (prefers-reduced-motion:reduce){.bm-path{transition:none}}
+
+.bm-pin circle{fill:none; stroke:var(--flag); stroke-width:2.5}
+.bm-pin .bm-pin-dot{fill:var(--flag); stroke:none}
+.bm-heat{
+  fill:var(--flag); opacity:calc(.18 + var(--pain) * .34); stroke:none;
+  mix-blend-mode:multiply;
+}
+:root[data-theme="dark"] .bm-heat,
+:root:not([data-theme="light"]) .bm-heat{mix-blend-mode:screen}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) .bm-heat{mix-blend-mode:multiply}
+}
+
+.bm-readout{margin-top:12px; border-top:1px solid var(--line2); padding-top:12px}
+.bm-where{
+  margin:0 0 6px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  font-family:'Barlow Condensed',sans-serif; font-size:17px;
+}
+.bm-where b{font-weight:600}
+.bm-hint{margin:0 0 10px; font-size:15px; color:var(--mut); line-height:1.45; max-width:56ch}
+.bm-structures{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+.bm-chip{
+  font-family:'Barlow Condensed',sans-serif; font-size:14px; padding:4px 10px;
+  border:1px solid var(--line); background:var(--raise); color:var(--ink2); cursor:pointer;
+  border-left-width:3px;
+}
+.bm-chip:hover{border-color:var(--ink)}
+.bm-chip.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+/* A left rule keys the chip to what kind of tissue it is. */
+.bm-chip.k-muscle{border-left-color:var(--run)}
+.bm-chip.k-tendon{border-left-color:var(--warn)}
+.bm-chip.k-bone{border-left-color:var(--lift)}
+.bm-chip.k-joint{border-left-color:var(--swim)}
+.bm-chip.k-nerve{border-left-color:var(--bike)}
+.bm-chip.k-other{border-left-color:var(--faint)}
+.bm-free{margin-bottom:0}
+
+.bodymap.heat{padding:18px}
+.bodymap.heat .bm-view{flex-basis:230px; max-width:230px}
+.plainlist{list-style:none; margin:0; padding:0; font-size:16px}
+.plainlist li{padding:5px 0; border-bottom:1px dotted var(--line)}
+.plainlist li span{
+  font-family:'Barlow Condensed',sans-serif; color:var(--faint); margin-right:8px;
+  font-variant-numeric:tabular-nums;
+}
+@media (max-width:560px){
+  .bm-view{flex-basis:46%}
+}
