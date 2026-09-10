@@ -13,7 +13,7 @@
 // pocketpt/pocketpt-alpha-build-v1/LICENSE.txt.
 import { BACK, FRONT, VIEWBOX } from '../lib/silhouette.js';
 import {
-  KINDS, describeSite, getZone, quadBounds, sideLetters, siteAt, siteQuad, troublePoints,
+  KINDS, describeSite, getZone, quadsBounds, sideLetters, siteAt, siteQuads, troublePoints,
 } from '../lib/body.js';
 import { esc } from '../lib/ui.js';
 
@@ -43,7 +43,7 @@ function toViewBox(svg, event) {
  * neighbouring body visible, then squared off to the frame's shape.
  */
 function cropFor(site) {
-  const area = quadBounds(siteQuad(site, null));
+  const area = quadsBounds(siteQuads(site, null));
   if (!area) return FULL;
   const [ax0, ay0, ax1, ay1] = area;
   const padX = Math.max(26, (ax1 - ax0) * 0.45);
@@ -89,10 +89,15 @@ function heatLayer(view, heat) {
     }).join('');
 }
 
-/** A highlight outline as polygon points, or an empty one when nothing is lit. */
-const pointsOf = (quad) => (quad
-  ? quad.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  : '');
+/**
+ * Highlight outlines as polygon point lists. Always two: a point on the midline
+ * lights up both sides, and keeping the slot empty rather than absent means the
+ * hover handler can move the shapes without rebuilding them.
+ */
+function pointsOf(quads) {
+  const one = (q) => (q ? q.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ') : '');
+  return [one(quads?.[0]), one(quads?.[1])];
+}
 
 /**
  * One framed figure. `lit` is the outline to highlight, in viewBox coordinates:
@@ -108,11 +113,11 @@ function frame(view, {
     ? `<g class="bm-pin"><circle cx="${site.x}" cy="${site.y}" r="15"/>`
       + `<circle cx="${site.x}" cy="${site.y}" r="5" class="bm-pin-dot"/></g>`
     : '';
-  const pts = pointsOf(lit);
+  const [pA, pB] = pointsOf(lit);
   const highlight = clipId
-    ? `<defs><clipPath id="${clipId}"><polygon points="${pts}"/></clipPath></defs>`
+    ? `<defs><clipPath id="${clipId}"><polygon points="${pA}"/><polygon points="${pB}"/></clipPath></defs>`
       + `<g class="bm-lit" clip-path="url(#${clipId})">${innerArt(view)}</g>`
-      + `<polygon class="bm-litbox" points="${pts}"/>`
+      + `<polygon class="bm-litbox" points="${pA}"/><polygon class="bm-litbox" points="${pB}"/>`
     : '';
 
   const open = role === 'open';
@@ -173,7 +178,7 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
       site: current,
       heat: history,
       crop: cropFor(current),
-      lit: siteQuad(current, hover ?? current.structure),
+      lit: siteQuads(current, hover ?? current.structure),
       role: 'pick',
       caption: 'Tap to move the pin',
       clipId,
@@ -217,10 +222,11 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
    */
   const paintHighlight = () => {
     if (stage !== 'zone' || !current) return;
-    const pts = pointsOf(siteQuad(current, hover ?? current.structure));
-    if (!pts) return;
-    container.querySelectorAll(`#${clipId} polygon, .bm-litbox`)
-      .forEach((el) => el.setAttribute('points', pts));
+    const pts = pointsOf(siteQuads(current, hover ?? current.structure));
+    container.querySelectorAll(`#${clipId} polygon`)
+      .forEach((el, i) => el.setAttribute('points', pts[i] || ''));
+    container.querySelectorAll('.bm-litbox')
+      .forEach((el, i) => el.setAttribute('points', pts[i] || ''));
   };
 
   container.addEventListener('click', (e) => {

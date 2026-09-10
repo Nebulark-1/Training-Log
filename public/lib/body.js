@@ -536,45 +536,42 @@ export const viewerSide = (view, side) => (MIRRORED[view]
   ? (side === 'right' ? 'viewerLeft' : 'viewerRight')
   : (side === 'left' ? 'viewerLeft' : 'viewerRight'));
 
-const spanUnion = (a, b) => {
-  if (!a) return b || null;
-  if (!b) return a;
-  return {
+/**
+ * The limbs a point covers, each with the direction its fractions run.
+ *
+ * A point on the midline is not one wide limb spanning the body — asking for
+ * something medial there would land it against the far edge. It is both limbs,
+ * mirrored about the centre, so a spine lights up as one strip straddling the
+ * midline and a paired muscle lights up as a pair.
+ */
+export function limbsFor(view, zoneId, side) {
+  const entry = LIMBS[`${view}:${zoneId}`];
+  if (!entry) return [];
+  // A midline zone has no sides; its fractions run across the whole width.
+  if (entry.center) return [{ limb: entry.center, flip: false }];
+  if (side === 'left' || side === 'right') {
+    const key = viewerSide(view, side);
+    return entry[key] ? [{ limb: entry[key], flip: key === 'viewerRight' }] : [];
+  }
+  return [
+    entry.viewerLeft && { limb: entry.viewerLeft, flip: false },
+    entry.viewerRight && { limb: entry.viewerRight, flip: true },
+  ].filter(Boolean);
+}
+
+/** The whole of one side of a zone, for cropping and for a zone-level highlight. */
+export function limbFor(view, zoneId, side) {
+  const parts = limbsFor(view, zoneId, side);
+  if (!parts.length) return null;
+  return parts.map((p) => p.limb).reduce((a, b) => ({
     y: [Math.min(a.y[0], b.y[0]), Math.max(a.y[1], b.y[1])],
     top: [Math.min(a.top[0], b.top[0]), Math.max(a.top[1], b.top[1])],
     bottom: [Math.min(a.bottom[0], b.bottom[0]), Math.max(a.bottom[1], b.bottom[1])],
-  };
-};
-
-/** The measured limb for a zone and side; both halves when the point is midline. */
-export function limbFor(view, zoneId, side) {
-  const entry = LIMBS[`${view}:${zoneId}`];
-  if (!entry) return null;
-  if (entry.center) return entry.center;
-  if (side !== 'left' && side !== 'right') return spanUnion(entry.viewerLeft, entry.viewerRight);
-  return entry[viewerSide(view, side)] || null;
+  }));
 }
 
-/**
- * The outline of a structure, as four points that follow the limb.
- *
- * Areas are stored as fractions of the limb with x running lateral to medial,
- * so one definition lights up the right part of either arm or leg. The limb's
- * taper is applied at both ends of the structure, so a shape down at the ankle
- * comes out as narrow as the ankle. A structure with no area of its own covers
- * the whole limb, which is the honest answer when there is no smaller region
- * to point at.
- */
-export function structureQuad(view, zoneId, structureId, side = 'center') {
-  const zone = getZone(view, zoneId);
-  const limb = limbFor(view, zoneId, side);
-  if (!zone || !limb) return null;
-  const st = structureId ? zone.structures.find((x) => x.id === structureId) : null;
-  const [fx0, fy0, fx1, fy1] = st?.area || [0, 0, 1, 1];
-  const sided = zone.sided !== false && (side === 'left' || side === 'right');
-  // On the viewer's right the limb runs medial to lateral across the screen.
-  const flip = sided && viewerSide(view, side) === 'viewerRight';
-
+/** One structure on one limb, as four points that follow its taper. */
+function quadIn(limb, [fx0, fy0, fx1, fy1], flip) {
   const [ly0, ly1] = limb.y;
   const h = ly1 - ly0;
   const edge = (y) => {
@@ -591,18 +588,37 @@ export function structureQuad(view, zoneId, structureId, side = 'center') {
   return [[ax0, yA], [ax1, yA], [bx1, yB], [bx0, yB]];
 }
 
-/** The bounding box of a quad, for anything that needs a rectangle. */
-export const quadBounds = (quad) => (quad ? [
-  Math.min(...quad.map((p) => p[0])), Math.min(...quad.map((p) => p[1])),
-  Math.max(...quad.map((p) => p[0])), Math.max(...quad.map((p) => p[1])),
-] : null);
+/**
+ * The outline of a structure: one shape per limb it covers.
+ *
+ * Areas are stored as fractions of the limb with x running lateral to medial,
+ * so one definition lights up the right part of either arm or leg, and on the
+ * midline it lights up both. The limb's taper is applied at both ends of the
+ * structure, so a shape down at the ankle comes out as narrow as the ankle. A
+ * structure with no area of its own covers the whole limb, which is the honest
+ * answer when there is no smaller region to point at.
+ */
+export function structureQuads(view, zoneId, structureId, side = 'center') {
+  const zone = getZone(view, zoneId);
+  if (!zone) return [];
+  const st = structureId ? zone.structures.find((x) => x.id === structureId) : null;
+  const area = st?.area || [0, 0, 1, 1];
+  return limbsFor(view, zoneId, side).map(({ limb, flip }) => quadIn(limb, area, flip));
+}
+
+/** The bounding box around a set of shapes, for anything that needs a rectangle. */
+export function quadsBounds(quads) {
+  const pts = (quads || []).flat();
+  if (!pts.length) return null;
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
 
 /** The same, straight from a stored site. */
-export const siteQuad = (site, structureId = site?.structure) => (site
-  ? structureQuad(site.view, site.zone, structureId, site.side)
-  : null);
-
-export const siteArea = (site, structureId = site?.structure) => quadBounds(siteQuad(site, structureId));
+export const siteQuads = (site, structureId = site?.structure) => (site
+  ? structureQuads(site.view, site.zone, structureId, site.side)
+  : []);
 
 /** Which letter goes on which side of the figure on screen. */
 export const sideLetters = (view) => (MIRRORED[view]
