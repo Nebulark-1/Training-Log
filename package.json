@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node --experimental-sqlite --no-warnings server/index.js",
     "dev": "node --experimental-sqlite --no-warnings --watch server/index.js",
-    "coach": "node --experimental-sqlite --no-warnings server/cli.js"
+    "coach": "node --experimental-sqlite --no-warnings server/cli.js",
+    "test": "node --experimental-sqlite --no-warnings --test \"test/**/*.test.js\"",
+    "backtest": "node --experimental-sqlite --no-warnings server/backtest-cli.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

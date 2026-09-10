@@ -7,6 +7,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { migrate, schemaVersion } from './migrations.js';
 
 export const db = new DatabaseSync(config.dbPath);
 
@@ -14,133 +15,10 @@ db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
 db.exec('PRAGMA busy_timeout = 5000');
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-  id          TEXT PRIMARY KEY,
-  google_sub  TEXT UNIQUE,
-  email       TEXT,
-  name        TEXT,
-  picture     TEXT,
-  created_at  TEXT NOT NULL,
-  last_seen   TEXT
-);
-
-CREATE TABLE IF NOT EXISTS auth_sessions (
-  id          TEXT PRIMARY KEY,
-  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at  TEXT NOT NULL,
-  expires_at  TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS auth_sessions_user ON auth_sessions(user_id);
-
-CREATE TABLE IF NOT EXISTS oauth_states (
-  state       TEXT PRIMARY KEY,
-  provider    TEXT NOT NULL,
-  user_id     TEXT,
-  verifier    TEXT,
-  created_at  TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS connections (
-  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider      TEXT NOT NULL,
-  access_token  TEXT,
-  refresh_token TEXT,
-  expires_at    INTEGER,
-  scope         TEXT,
-  external_id   TEXT,
-  meta          TEXT,
-  updated_at    TEXT NOT NULL,
-  PRIMARY KEY (user_id, provider)
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  user_id       TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  doc           TEXT NOT NULL,
-  anthropic_key TEXT,
-  updated_at    TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS plans (
-  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS weeks (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  week       TEXT NOT NULL,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, week)
-);
-
-CREATE TABLE IF NOT EXISTS activities (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  id         TEXT NOT NULL,
-  date       TEXT NOT NULL,
-  sport      TEXT,
-  source     TEXT,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, id)
-);
-CREATE INDEX IF NOT EXISTS activities_user_date ON activities(user_id, date DESC);
-
-CREATE TABLE IF NOT EXISTS feedback (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id TEXT NOT NULL,
-  date       TEXT NOT NULL,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, session_id)
-);
-CREATE INDEX IF NOT EXISTS feedback_user_date ON feedback(user_id, date DESC);
-
-CREATE TABLE IF NOT EXISTS digests (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  week       TEXT NOT NULL,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, week)
-);
-
-CREATE TABLE IF NOT EXISTS sync_state (
-  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
--- The strength program: a small stable set of movements, versioned in-doc.
-CREATE TABLE IF NOT EXISTS lift_program (
-  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
--- Goals are structured and multiple: a volume goal and a race goal can be
--- live at once, with one marked primary for the confidence number.
-CREATE TABLE IF NOT EXISTS goals (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  id         TEXT NOT NULL,
-  doc        TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, id)
-);
-
-CREATE TABLE IF NOT EXISTS coach_runs (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  kind       TEXT NOT NULL,
-  model      TEXT,
-  usage      TEXT,
-  ms         INTEGER,
-  ok         INTEGER,
-  error      TEXT,
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS coach_runs_user ON coach_runs(user_id, created_at DESC);
-`);
+// The schema lives in migrations.js, versioned, so an older ledger is brought
+// forward rather than left quietly mismatched.
+export const migration = migrate(db);
+export const dbVersion = () => schemaVersion(db);
 
 export const nowIso = () => new Date().toISOString();
 export const newId = (n = 16) => crypto.randomBytes(n).toString('base64url');

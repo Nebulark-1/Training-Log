@@ -50,6 +50,9 @@ export function hrAnchors(activities) {
 }
 
 /** Metres per minute per beat: higher is a more efficient aerobic engine. */
+/** Below this many aerobic minutes in 28 days, a quality share is noise. */
+export const MIN_TRUSTED_MINUTES = 240;
+
 export function efficiencyFactor(session) {
   if (sportKey(session.sport) !== 'run') return null;
   if (!session.hrAvg || !session.miles || !session.movingMin) return null;
@@ -58,11 +61,29 @@ export function efficiencyFactor(session) {
 }
 
 /**
+ * The shortest run worth reading drift from.
+ *
+ * Decoupling is a statement about whether the aerobic system holds up over
+ * time, so it needs enough time to hold up over. Six splits was too low a bar:
+ * a 6-mile run at 15.4% says almost nothing, because normal early-run drift
+ * and a single hilly mile move the number more than aerobic fitness does. The
+ * classic protocol is an hour of steady work; 50 minutes lets an ordinary long
+ * run in without letting a tempo pretend to be one.
+ */
+export const DECOUPLING_FLOOR_MIN = 50;
+
+/**
  * Pace-to-heart-rate drift across a run: second half versus first half of
  * speed-per-beat. Above roughly 5% on a steady effort is the classic sign that
  * the aerobic base is not yet supporting the duration.
+ *
+ * Returns null unless the run is long enough and steady enough to mean it. A
+ * workout drifts hugely by design, and reporting that as decoupling would read
+ * as a fitness problem when it is just the session doing its job.
  */
-export function decoupling(session) {
+export function decoupling(session, { floorMin = DECOUPLING_FLOOR_MIN } = {}) {
+  if ((session.movingMin || 0) < floorMin) return null;
+  if (session.race || session.runType === 'workout') return null;
   const splits = (session.splits || []).filter((s) => s.paceSecPerMi && s.hrAvg);
   if (splits.length < 6) return null;
   const half = Math.floor(splits.length / 2);
@@ -94,10 +115,17 @@ function qualityShare(session, feedback, { maxHr, restHr }) {
  * The whole derived picture. One pass over the log, everything downstream
  * reads from this.
  */
-export function buildSeries(userId, { days = 400 } = {}) {
-  const from = ymd(new Date(Date.now() - days * DAY));
-  const activities = getActivities(userId, from, 1200);
-  const feedback = new Map(getFeedback(userId, from).map((f) => [f.sessionId, f]));
+export function buildSeries(userId, { days = 400, asOf = null } = {}) {
+  // `asOf` rewinds the whole picture to a past date, using only what was known
+  // then. Everything downstream reads from this, so passing it here is enough
+  // to make the scores answer "what would this have said at the time".
+  const end = asOf ? parseYmd(asOf) : new Date();
+  const from = ymd(new Date(end.getTime() - days * DAY));
+  const cutoff = ymd(end);
+  const activities = getActivities(userId, from, 1200).filter((a) => a.date <= cutoff);
+  const feedback = new Map(getFeedback(userId, from)
+    .filter((f) => f.date <= cutoff)
+    .map((f) => [f.sessionId, f]));
   const anchors = hrAnchors(activities);
 
   const daily = new Map();
@@ -124,7 +152,6 @@ export function buildSeries(userId, { days = 400 } = {}) {
   // A continuous daily series, zeros included — rest days are data.
   const series = [];
   const start = parseYmd(from);
-  const end = new Date();
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const date = ymd(d);
     series.push(daily.get(date) || { date, load: 0, minutes: 0, quality: 0, sessions: 0, volumes: {}, pain: null });
@@ -156,10 +183,13 @@ export function rolling(series) {
 }
 
 /** Per-sport volume for each of the last N ISO weeks, plus planned targets. */
-export function weeklyVolumes(userId, { weeks = 26 } = {}) {
-  const current = isoWeek(new Date());
+export function weeklyVolumes(userId, { weeks = 26, asOf = null } = {}) {
+  const end = asOf ? parseYmd(asOf) : new Date();
+  const current = isoWeek(end);
   const oldest = weekAdd(current, -weeks);
-  const activities = getActivities(userId, ymd(mondayOf(oldest)), 1200);
+  const cutoff = ymd(end);
+  const activities = getActivities(userId, ymd(mondayOf(oldest)), 1200)
+    .filter((a) => a.date <= cutoff);
   const plan = getPlan(userId);
   const weekDocs = new Map(getWeeks(userId, oldest).map((w) => [w.week, w]));
 
@@ -251,7 +281,24 @@ export function speedScore(series, activities) {
   const share = quality / minutes;
   // 12% of total time above aerobic base is a healthy polarized week; treat
   // that as the top of the scale rather than "more is better".
-  const shareScore = clamp01(share / 0.12);
+  const rawShareScore = clamp01(share / 0.12);
+
+  /*
+   * A share is a ratio, and a ratio off almost no training is noise. Someone
+   * hurt, doing one hard half-hour in a month, was scoring a perfect 1.0 on
+   * this term — the single heaviest input — and coming out faster than someone
+   * training properly. That is backwards exactly when it matters most.
+   *
+   * So the share is trusted in proportion to the volume behind it, measured
+   * against this athlete's own normal month, and shrunk toward neutral when
+   * there is not enough. Neutral, not zero: a quiet month is unknown, not slow.
+   */
+  const window28 = (i) => series.slice(Math.max(0, i - 27), i + 1)
+    .reduce((n, d) => n + d.minutes, 0);
+  const peak28 = series.reduce((best, _d, i) => Math.max(best, window28(i)), 0);
+  const expected = Math.max(MIN_TRUSTED_MINUTES, peak28 * 0.5);
+  const trust = clamp01(minutes / expected);
+  const shareScore = 0.5 + (rawShareScore - 0.5) * trust;
 
   const efRuns = activities
     .filter((a) => sportKey(a.sport) === 'run')
@@ -278,7 +325,10 @@ export function speedScore(series, activities) {
       minutesIn28: Math.round(minutes),
       qualityMinutesIn28: Math.round(quality),
       qualityShare: round(share, 3),
+      qualityShareRaw: round(rawShareScore, 3),
       qualityShareScore: round(shareScore, 3),
+      volumeTrust: round(trust, 3),
+      trustedAtMinutes: Math.round(expected),
       efficiencyFactorTrendPct: efTrend == null ? null : round(efTrend, 2),
       efficiencySamples: efRuns.length,
       bestEfforts: efforts,
@@ -333,9 +383,9 @@ function bestEffortTrend(activities) {
  *
  * Heuristic, not a validated model. The inputs matter more than the number.
  */
-export function goalConfidence(goal, { weekly, roll, series, activities }) {
+export function goalConfidence(goal, { weekly, roll, series, activities, asOf = null }) {
   if (!goal) return null;
-  const today = new Date();
+  const today = asOf ? parseYmd(asOf) : new Date();
   const weeksLeft = goal.byDate
     ? Math.max(0, Math.round((parseYmd(goal.byDate) - today) / (7 * DAY)))
     : null;
@@ -466,20 +516,21 @@ const fmtTime = (sec) => {
 };
 
 /** Everything the dashboard and the coach need, in one call. */
-export function fitnessSnapshot(userId, { goals = [] } = {}) {
-  const { series, activities, anchors } = buildSeries(userId);
+export function fitnessSnapshot(userId, { goals = [], asOf = null } = {}) {
+  const { series, activities, anchors } = buildSeries(userId, { asOf });
   const roll = rolling(series);
-  const weekly = weeklyVolumes(userId, { weeks: 26 });
+  const weekly = weeklyVolumes(userId, { weeks: 26, asOf });
   const primary = goals.find((g) => g.primary) || goals[0] || null;
 
   return {
     version: 'v0',
+    asOf,
     computedAt: new Date().toISOString(),
     anchors,
     latest: roll[roll.length - 1] || null,
     endurance: enduranceScore(roll, series),
     speed: speedScore(series, activities),
-    confidence: goalConfidence(primary, { weekly, roll, series, activities }),
+    confidence: goalConfidence(primary, { weekly, roll, series, activities, asOf }),
     weekly,
     daily: series.slice(-120),
     rollingSeries: roll.slice(-120).map((r) => ({

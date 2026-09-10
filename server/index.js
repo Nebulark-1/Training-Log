@@ -3,6 +3,7 @@ import express from 'express';
 import net from 'node:net';
 import path from 'node:path';
 import { config, encrypt } from './config.js';
+import { BACKUP_DIR, dailySnapshot, listBackups, snapshot } from './backup.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
 import { stravaRouter, syncUser } from './strava.js';
 import {
@@ -10,10 +11,10 @@ import {
   profileFor, reviewDigest, reviewProgram,
 } from './coach.js';
 import {
-  activityCount, deleteActivity, deleteGoal, exportAll, getActivities, getActivity,
-  getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState, getWeek,
-  getWeeks, listGoals, newId, pruneExpired, saveActivity, saveFeedback, saveGoal,
-  saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
+  activityCount, db, dbVersion, deleteActivity, deleteGoal, exportAll, getActivities,
+  getActivity, getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState,
+  getWeek, getWeeks, listGoals, migration, newId, pruneExpired, saveActivity, saveFeedback,
+  saveGoal, saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, offProgramMovements,
@@ -450,6 +451,24 @@ api.get('/export', (req, res) => {
   res.send(JSON.stringify(data, null, 1));
 });
 
+/**
+ * Snapshots. The export route hands back JSON a human can read; this one takes
+ * a real copy of the database, which is what you actually restore from.
+ */
+api.get('/backups', (_req, res) => {
+  res.json({
+    dir: BACKUP_DIR,
+    schema: dbVersion(),
+    backups: listBackups().map(({ file, tag, bytes, mtime }) => ({ file, tag, bytes, mtime })),
+  });
+});
+
+api.post('/backups', (_req, res) => {
+  const made = snapshot(db, { tag: 'manual' });
+  if (made?.error) return res.status(500).json({ error: made.error });
+  res.json({ ok: true, path: made.path, bytes: made.bytes, backups: listBackups().length });
+});
+
 app.use('/api', api);
 
 app.use(express.static(config.publicDir, { extensions: ['html'], maxAge: 0 }));
@@ -460,6 +479,19 @@ app.get('*splat', (_req, res) => res.sendFile(path.join(config.publicDir, 'index
 app.use((err, _req, res, _next) => {
   console.error('[error]', err);
   res.status(500).json({ error: 'server_error' });
+});
+
+/**
+ * Node exits on an unhandled rejection, so without these a single missed catch
+ * inside a sync takes the whole server down and the browser simply stops being
+ * answered. Log loudly and keep serving: a half-finished sync is recoverable,
+ * a dead process in the middle of logging a session is not.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandled rejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaught exception]', err);
 });
 
 pruneExpired();
@@ -508,7 +540,17 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`  strava     ${config.strava.enabled ? 'configured' : 'not configured — add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to .env'}`);
   const claude = claudeStatus('');
   console.log(`  claude     ${claude.available ? `${claude.model} via ${claude.source}` : 'no credentials found (offline coaching: npm run coach)'}`);
-  console.log(`  database   ${config.dbPath}\n`);
+  console.log(`  database   ${config.dbPath}`);
+  const moved = migration.applied.length
+    ? `${migration.from} -> ${migration.to} (${migration.applied.map((m) => m.name).join(', ')})`
+    : `v${migration.to}, up to date`;
+  console.log(`  schema     ${moved}`);
+  const saved = dailySnapshot(db);
+  const kept = listBackups().length;
+  if (saved?.error) console.log(`  backups    could not write one: ${saved.error}`);
+  else if (saved) console.log(`  backups    ${kept} kept, newest ${(saved.bytes / 1024).toFixed(0)} KB`);
+  else console.log(`  backups    ${kept} kept, today's already taken`);
+  console.log('');
   if (config.strava.enabled) {
     console.log('  Strava credentials are loaded. Each account still has to authorize:');
     console.log('  open the site, go to Settings, and click Connect Strava.\n');

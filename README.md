@@ -40,8 +40,12 @@ before running more than one instance).
 | `server/program.js` | The strength program: progression, prescriptions, off-program queue |
 | `server/guardrails.js` | The training rules, enforced in code |
 | `server/fitness.js` | Derived metrics and the endurance / speed / confidence scores |
-| `server/db.js` | SQLite schema and queries (`node:sqlite`, no native build) |
+| `server/db.js` | SQLite queries (`node:sqlite`, no native build) |
+| `server/migrations.js` | The schema, versioned — every change ordered and recorded |
+| `server/backup.js` | Snapshots: daily, and before any schema change |
+| `server/backtest.js` | Scores the predictions against what actually happened |
 | `server/cli.js` | `npm run coach` — the same loop without an API key |
+| `test/` | `npm test` — the pure modules, no database or network needed |
 | `public/app.js` | App shell and router |
 | `public/pages/` | One module per page: today, week, strength, progress, injuries, plan, coach, log, settings |
 | `public/components/` | Lift log, session sheets, charts |
@@ -199,6 +203,35 @@ number, so the formula can be argued with. Acute:chronic load ratio is reported
 descriptively and never as a risk verdict — that literature is genuinely
 contested.
 
+Two v0 mistakes are fixed and worth knowing about, because they show the shape
+of the rest:
+
+- **A quality share off almost no training is noise.** One hard half-hour in an
+  otherwise empty month is a share of 1.0, which used to score a perfect mark
+  on the heaviest input — so being injured made you look fast. The share is now
+  trusted in proportion to the volume behind it and shrunk toward neutral when
+  there is not enough, because a quiet month is unknown, not slow.
+- **Decoupling needs a run long enough to mean something.** Six splits was too
+  low a bar: a 6-mile run flagged at 15.4% said nothing, because ordinary
+  early-run drift and one hilly mile move the number more than aerobic fitness
+  does. It now wants 50 minutes of steady running, and skips workouts and races
+  entirely — those drift by design.
+
+### Checking the scores against what happened
+
+```
+npm run backtest                      # 8 weeks ahead, 8 weeks of lead-in
+npm run backtest -- --horizon=6
+```
+
+This rewinds the model week by week, recomputes each score from only the data
+available at the time, and lines it up against how the following weeks actually
+went. It reports one column that matters more than the others: **last month's
+volume**, the no-model predictor. Volume that is low goes up and volume that is
+high comes down, so any score that tracks current volume will correlate with
+what follows whether or not it knows anything. A score earns its place by
+beating that column, and right now confidence does not.
+
 ## Connecting Claude
 
 There is no OAuth flow for a Claude.ai subscription, so a web app cannot spend
@@ -308,3 +341,39 @@ add the webhook subscription and the same `syncUser()` runs on a push.
 Everything lives in `data/ledger.db`. **Export everything** in Setup downloads
 the whole log — plan, sessions, notes, digests — as JSON. Deleting `data/` resets
 the app; the seeded plan comes back on the next sign-in.
+
+### Backups
+
+The ledger is the only copy of the training history, and every score is derived
+from it. Snapshots go in `data/backups/`, beside the database:
+
+- a **daily** one on startup, at most one a day, seven kept
+- a **pre-migration** one before the schema is ever touched, ten kept
+
+They are taken with `VACUUM INTO`, which is the part that matters: in WAL mode
+the newest writes live in the `-wal` file beside the database, so copying the
+bare `.db` silently leaves them behind. A snapshot is a complete database — open
+it, or swap it in, with nothing else needed.
+
+`GET /api/backups` lists them and `POST /api/backups` takes one on demand.
+
+### Schema changes
+
+`PRAGMA user_version` records where a database is, and `server/migrations.js`
+holds the ordered steps to bring it forward. Each step runs in its own
+transaction with its version bump, so a failure leaves the database on the last
+version that fully applied rather than half-way through one.
+
+To add a change, append a step with the next version number. Never edit or
+renumber one that has shipped — someone's database has already run it.
+
+## Tests
+
+```
+npm test
+```
+
+No database, no network, no fixtures to maintain: the suite covers the pure
+modules, which are the ones that decide things. Guardrails (is this week
+allowed), progression (does the bar go up), the fitness scores, the body-map
+geometry, and the migration and backup machinery itself.
