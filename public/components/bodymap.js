@@ -13,7 +13,7 @@
 // pocketpt/pocketpt-alpha-build-v1/LICENSE.txt.
 import { BACK, FRONT, VIEWBOX } from '../lib/silhouette.js';
 import {
-  KINDS, describeSite, getZone, sideLetters, siteArea, siteAt, troublePoints,
+  KINDS, describeSite, getZone, quadBounds, sideLetters, siteAt, siteQuad, troublePoints,
 } from '../lib/body.js';
 import { esc } from '../lib/ui.js';
 
@@ -43,7 +43,7 @@ function toViewBox(svg, event) {
  * neighbouring body visible, then squared off to the frame's shape.
  */
 function cropFor(site) {
-  const area = siteArea({ ...site, structure: null });
+  const area = quadBounds(siteQuad(site, null));
   if (!area) return FULL;
   const [ax0, ay0, ax1, ay1] = area;
   const padX = Math.max(26, (ax1 - ax0) * 0.45);
@@ -89,18 +89,15 @@ function heatLayer(view, heat) {
     }).join('');
 }
 
-/** The rect attributes for a highlight, or a zero-size one when nothing is lit. */
-function litAttrs(lit) {
-  if (!lit) return 'x="0" y="0" width="0" height="0"';
-  return `x="${lit[0].toFixed(1)}" y="${lit[1].toFixed(1)}"`
-    + ` width="${Math.max(0, lit[2] - lit[0]).toFixed(1)}"`
-    + ` height="${Math.max(0, lit[3] - lit[1]).toFixed(1)}"`;
-}
+/** A highlight outline as polygon points, or an empty one when nothing is lit. */
+const pointsOf = (quad) => (quad
+  ? quad.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  : '');
 
 /**
- * One framed figure. `lit` is the area to highlight, in viewBox coordinates:
- * the silhouette is drawn a second time through a clip of that rectangle, so
- * the highlight takes the shape of the body rather than sitting on it as a box.
+ * One framed figure. `lit` is the outline to highlight, in viewBox coordinates:
+ * the silhouette is drawn a second time through a clip of it, so the highlight
+ * takes the shape of the body rather than sitting on it as a box.
  */
 function frame(view, {
   site = null, heat = [], crop = FULL, lit = null, role = 'static',
@@ -111,11 +108,11 @@ function frame(view, {
     ? `<g class="bm-pin"><circle cx="${site.x}" cy="${site.y}" r="15"/>`
       + `<circle cx="${site.x}" cy="${site.y}" r="5" class="bm-pin-dot"/></g>`
     : '';
-  const rect = litAttrs(lit);
+  const pts = pointsOf(lit);
   const highlight = clipId
-    ? `<defs><clipPath id="${clipId}"><rect ${rect} rx="5" ry="5"/></clipPath></defs>`
+    ? `<defs><clipPath id="${clipId}"><polygon points="${pts}"/></clipPath></defs>`
       + `<g class="bm-lit" clip-path="url(#${clipId})">${innerArt(view)}</g>`
-      + `<rect class="bm-litbox" ${rect} rx="5" ry="5"/>`
+      + `<polygon class="bm-litbox" points="${pts}"/>`
     : '';
 
   const open = role === 'open';
@@ -176,7 +173,7 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
       site: current,
       heat: history,
       crop: cropFor(current),
-      lit: siteArea(current, hover ?? current.structure),
+      lit: siteQuad(current, hover ?? current.structure),
       role: 'pick',
       caption: 'Tap to move the pin',
       clipId,
@@ -220,14 +217,10 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
    */
   const paintHighlight = () => {
     if (stage !== 'zone' || !current) return;
-    const box = siteArea(current, hover ?? current.structure);
-    if (!box) return;
-    container.querySelectorAll(`#${clipId} rect, .bm-litbox`).forEach((r) => {
-      r.setAttribute('x', box[0].toFixed(1));
-      r.setAttribute('y', box[1].toFixed(1));
-      r.setAttribute('width', Math.max(0, box[2] - box[0]).toFixed(1));
-      r.setAttribute('height', Math.max(0, box[3] - box[1]).toFixed(1));
-    });
+    const pts = pointsOf(siteQuad(current, hover ?? current.structure));
+    if (!pts) return;
+    container.querySelectorAll(`#${clipId} polygon, .bm-litbox`)
+      .forEach((el) => el.setAttribute('points', pts));
   };
 
   container.addEventListener('click', (e) => {

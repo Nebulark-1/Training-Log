@@ -65,7 +65,7 @@ export const ZONES = [
     id: 'shoulder-front', view: 'front', label: 'Shoulder, front', box: [190, 172, 405, 245], sided: true,
     outsideOnly: [232, 364],
     structures: [
-      s('deltoid-ant', 'Anterior deltoid', 'muscle', [0.15, 0.15, 0.85, 0.8]),
+      s('deltoid-ant', 'Anterior deltoid', 'muscle', [0.05, 0.15, 0.75, 0.85]),
       s('rotator-cuff', 'Rotator cuff', 'tendon', [0.3, 0.05, 0.95, 0.5]),
       s('biceps-tendon', 'Long head of biceps tendon', 'tendon', [0.35, 0.3, 0.7, 0.95]),
       s('ac-joint', 'AC joint', 'joint', [0.5, 0, 1, 0.3]),
@@ -111,8 +111,8 @@ export const ZONES = [
       s('wrist-flexors', 'Wrist flexors', 'muscle', [0.5, 0.1, 1, 0.95]),
       s('wrist-extensors', 'Wrist extensors', 'muscle', [0, 0.1, 0.5, 0.95]),
       s('brachioradialis', 'Brachioradialis', 'muscle', [0, 0, 0.45, 0.5]),
-      s('radius', 'Radius', 'bone', [0.05, 0.2, 0.35, 1]),
-      s('ulna', 'Ulna', 'bone', [0.7, 0.2, 1, 1]),
+      s('radius', 'Radius', 'bone', [0.08, 0.2, 0.36, 1]),
+      s('ulna', 'Ulna', 'bone', [0.66, 0.2, 0.94, 1]),
     ],
   },
   {
@@ -260,7 +260,7 @@ export const ZONES = [
       s('trapezius-mid', 'Mid trapezius', 'muscle', [0.3, 0, 1, 0.8]),
       s('rhomboid', 'Rhomboids', 'muscle', [0.5, 0.15, 0.95, 0.85]),
       s('thoracic-spine', 'Thoracic spine', 'bone', [0.85, 0, 1, 1]),
-      s('scapula-medial', 'Medial scapular border', 'bone', [0.35, 0.1, 0.65, 0.95]),
+      s('scapula-medial', 'Medial scapular border', 'bone', [0.6, 0.12, 0.86, 0.92]),
     ],
   },
   {
@@ -298,8 +298,8 @@ export const ZONES = [
     structures: [
       s('extensors-b', 'Wrist extensors', 'muscle', [0.1, 0.15, 0.75, 0.9]),
       s('elbow-back', 'Elbow / olecranon', 'joint', [0.3, 0, 0.9, 0.2]),
-      s('radius-b', 'Radius', 'bone', [0.05, 0.25, 0.35, 1]),
-      s('ulna-b', 'Ulna', 'bone', [0.7, 0.2, 1, 1]),
+      s('radius-b', 'Radius', 'bone', [0.08, 0.25, 0.36, 1]),
+      s('ulna-b', 'Ulna', 'bone', [0.58, 0.3, 0.86, 0.95]),
     ],
   },
   {
@@ -485,58 +485,124 @@ export function troublePoints(entries) {
 }
 
 /**
- * The half of a zone that belongs to one side of the body, in viewBox
- * coordinates. For limb zones the medial edge is the torso boundary
- * (`outsideOnly`) rather than the centreline, so an arm's "inner" edge is the
- * inside of the arm and not the middle of the chest.
+ * Where each limb actually is, measured off the artwork rather than assumed
+ * from the zone box.
  *
- * Returns { box, flip }. `flip` is true when the limb runs medial-to-lateral
- * left-to-right on screen, which is how a structure's lateral/medial fractions
- * get applied to the correct end.
+ * A zone box is drawn wide enough to catch a click, so half of it is much
+ * wider than the limb inside it — the shin box's half spans 77 units where the
+ * shin spans 50. Placing a structure by fractions of that half pushed
+ * everything outward and stretched it, which left the lateral bones sitting
+ * off the leg entirely. These are the real extents, sampled from the rendered
+ * silhouette: `top` and `bottom` are the limb's span at each end of its ink, so
+ * a tapering calf or an angled forearm is followed rather than boxed.
  */
-export function limbBox(view, zone, side) {
-  const [x0, y0, x1, y1] = zone.box;
-  if (zone.sided === false || side !== 'left' && side !== 'right') {
-    return { box: [x0, y0, x1, y1], flip: false };
-  }
-  const centre = Math.min(x1, Math.max(x0, CENTERLINE[view]));
-  const [t0, t1] = zone.outsideOnly || [centre, centre];
-  // The front view is a mirror, so the athlete's right sits on the viewer's left.
-  const viewerLeft = MIRRORED[view] ? side === 'right' : side === 'left';
-  return viewerLeft
-    ? { box: [x0, y0, Math.max(x0, t0), y1], flip: false }
-    : { box: [Math.min(x1, t1), y0, x1, y1], flip: true };
+export const LIMBS = {
+  'front:head': { center: { y: [58, 150.5], top: [273, 323], bottom: [275.5, 319.5] } },
+  'front:neck-front': { viewerLeft: { y: [148, 186.5], top: [275.5, 298], bottom: [255, 298] }, viewerRight: { y: [148, 186.5], top: [297.5, 319.5], bottom: [297.5, 342.5] } },
+  'front:shoulder-front': { viewerLeft: { y: [177.5, 245.5], top: [216.5, 232.5], bottom: [195.5, 232.5] }, viewerRight: { y: [177.5, 245.5], top: [364, 379], bottom: [364, 399.5] } },
+  'front:chest': { viewerLeft: { y: [180, 262.5], top: [228, 298], bottom: [228, 298] }, viewerRight: { y: [180, 262.5], top: [297.5, 368.5], bottom: [297.5, 368.5] } },
+  'front:upper-arm-front': { viewerLeft: { y: [225, 315.5], top: [196, 232.5], bottom: [180, 216] }, viewerRight: { y: [225, 315.5], top: [364, 399.5], bottom: [379.5, 415] } },
+  'front:elbow-front': { viewerLeft: { y: [300, 340.5], top: [180.5, 215.5], bottom: [175, 215] }, viewerRight: { y: [300, 340.5], top: [379.5, 415], bottom: [380.5, 420] } },
+  'front:forearm-front': { viewerLeft: { y: [335, 425.5], top: [175, 212], bottom: [175, 197.5] }, viewerRight: { y: [335, 425.5], top: [383.5, 420], bottom: [398, 420.5] } },
+  'front:hand': { viewerLeft: { y: [420, 456], top: [174.5, 205], bottom: [176, 200.5] }, viewerRight: { y: [420, 456], top: [391, 420.5], bottom: [396.5, 419.5] } },
+  'front:abdomen-upper': { viewerLeft: { y: [258, 332.5], top: [236, 298], bottom: [241, 298] }, viewerRight: { y: [258, 332.5], top: [297.5, 360.5], bottom: [297.5, 354] } },
+  'front:abdomen-lower': { viewerLeft: { y: [330, 392.5], top: [240.5, 298], bottom: [236, 298] }, viewerRight: { y: [330, 392.5], top: [297.5, 355], bottom: [297.5, 360.5] } },
+  'front:hip-front': { viewerLeft: { y: [386, 452.5], top: [230, 298], bottom: [230, 297.5] }, viewerRight: { y: [386, 452.5], top: [297.5, 366.5], bottom: [298, 366.5] } },
+  'front:thigh-front-upper': { viewerLeft: { y: [448, 512.5], top: [224.5, 296.5], bottom: [225.5, 291] }, viewerRight: { y: [448, 512.5], top: [299, 370.5], bottom: [305.5, 369.5] } },
+  'front:thigh-front-lower': { viewerLeft: { y: [510, 566.5], top: [227, 289], bottom: [231.5, 280] }, viewerRight: { y: [510, 566.5], top: [307, 368], bottom: [315, 363.5] } },
+  'front:knee-front': { viewerLeft: { y: [562, 612.5], top: [232.5, 277], bottom: [224.5, 277] }, viewerRight: { y: [562, 612.5], top: [318, 362.5], bottom: [318, 370.5] } },
+  'front:shin': { viewerLeft: { y: [608, 722.5], top: [226, 276.5], bottom: [239, 264.5] }, viewerRight: { y: [608, 722.5], top: [318.5, 369], bottom: [330.5, 356.5] } },
+  'front:ankle-front': { viewerLeft: { y: [718, 764.5], top: [236.5, 266.5], bottom: [220, 261.5] }, viewerRight: { y: [718, 764.5], top: [328.5, 358.5], bottom: [334, 376.5] } },
+  'front:foot-top': { viewerLeft: { y: [760, 784], top: [215, 260], bottom: [236.5, 253] }, viewerRight: { y: [760, 784], top: [335, 380], bottom: [342, 358.5] } },
+  'back:head-back': { center: { y: [65.5, 145.5], top: [281.5, 329.5], bottom: [277, 332] } },
+  'back:neck-back': { viewerLeft: { y: [118, 190.5], top: [275, 306], bottom: [262, 306] }, viewerRight: { y: [118, 190.5], top: [305.5, 335.5], bottom: [305.5, 352.5] } },
+  'back:shoulder-back': { viewerLeft: { y: [180, 256.5], top: [224.5, 242.5], bottom: [201.5, 242.5] }, viewerRight: { y: [180, 256.5], top: [369, 387], bottom: [369, 410] } },
+  'back:upper-back': { viewerLeft: { y: [186, 262.5], top: [238, 306], bottom: [238, 306] }, viewerRight: { y: [186, 262.5], top: [305.5, 372.5], bottom: [305.5, 372.5] } },
+  'back:mid-back': { viewerLeft: { y: [258, 322.5], top: [238, 306], bottom: [245, 305.5] }, viewerRight: { y: [258, 322.5], top: [305.5, 372.5], bottom: [306.5, 366.5] } },
+  'back:lower-back': { viewerLeft: { y: [318, 398.5], top: [247, 306], bottom: [239, 306] }, viewerRight: { y: [318, 398.5], top: [305.5, 364.5], bottom: [305.5, 372.5] } },
+  'back:upper-arm-back': { viewerLeft: { y: [228, 315.5], top: [202, 242.5], bottom: [189, 224.5] }, viewerRight: { y: [228, 315.5], top: [369, 409.5], bottom: [386.5, 422] } },
+  'back:forearm-back': { viewerLeft: { y: [312, 448.5], top: [184, 224], bottom: [183.5, 217] }, viewerRight: { y: [312, 448.5], top: [387, 427.5], bottom: [394.5, 428] } },
+  'back:hand-back': { viewerLeft: { y: [444, 463], top: [183.5, 217], bottom: [185, 203.5] }, viewerRight: { y: [444, 463], top: [394.5, 427.5], bottom: [408.5, 426.5] } },
+  'back:glute': { viewerLeft: { y: [394, 462.5], top: [238, 306], bottom: [238, 305] }, viewerRight: { y: [394, 462.5], top: [305.5, 374.5], bottom: [306, 374.5] } },
+  'back:hamstring': { viewerLeft: { y: [458, 570.5], top: [232, 304.5], bottom: [238.5, 291.5] }, viewerRight: { y: [458, 570.5], top: [306.5, 380.5], bottom: [320, 373] } },
+  'back:knee-back': { viewerLeft: { y: [566, 616.5], top: [236.5, 289], bottom: [233.5, 284] }, viewerRight: { y: [566, 616.5], top: [322, 375], bottom: [327, 378] } },
+  'back:calf': { viewerLeft: { y: [612, 722.5], top: [232, 285], bottom: [239, 271] }, viewerRight: { y: [612, 722.5], top: [326.5, 380], bottom: [340, 372] } },
+  'back:achilles': { viewerLeft: { y: [718, 762.5], top: [242.5, 271], bottom: [246.5, 273.5] }, viewerRight: { y: [718, 762.5], top: [340.5, 369], bottom: [338, 365] } },
+  'back:foot-back': { viewerLeft: { y: [758, 791.5], top: [242.5, 275], bottom: [246, 278] }, viewerRight: { y: [758, 791.5], top: [336.5, 368.5], bottom: [333, 365.5] } },
+};
+
+/** Which half of the screen a side of the body is on. */
+export const viewerSide = (view, side) => (MIRRORED[view]
+  ? (side === 'right' ? 'viewerLeft' : 'viewerRight')
+  : (side === 'left' ? 'viewerLeft' : 'viewerRight'));
+
+const spanUnion = (a, b) => {
+  if (!a) return b || null;
+  if (!b) return a;
+  return {
+    y: [Math.min(a.y[0], b.y[0]), Math.max(a.y[1], b.y[1])],
+    top: [Math.min(a.top[0], b.top[0]), Math.max(a.top[1], b.top[1])],
+    bottom: [Math.min(a.bottom[0], b.bottom[0]), Math.max(a.bottom[1], b.bottom[1])],
+  };
+};
+
+/** The measured limb for a zone and side; both halves when the point is midline. */
+export function limbFor(view, zoneId, side) {
+  const entry = LIMBS[`${view}:${zoneId}`];
+  if (!entry) return null;
+  if (entry.center) return entry.center;
+  if (side !== 'left' && side !== 'right') return spanUnion(entry.viewerLeft, entry.viewerRight);
+  return entry[viewerSide(view, side)] || null;
 }
 
 /**
- * The rectangle a structure occupies, in viewBox coordinates. Structure areas
- * are stored as fractions of the limb with x running lateral to medial, so one
- * definition lights up the right part of either arm or leg. A structure with no
- * area of its own lights up its whole side of the zone, which is the honest
- * answer when there is no smaller region to point at.
+ * The outline of a structure, as four points that follow the limb.
+ *
+ * Areas are stored as fractions of the limb with x running lateral to medial,
+ * so one definition lights up the right part of either arm or leg. The limb's
+ * taper is applied at both ends of the structure, so a shape down at the ankle
+ * comes out as narrow as the ankle. A structure with no area of its own covers
+ * the whole limb, which is the honest answer when there is no smaller region
+ * to point at.
  */
-export function structureArea(view, zoneId, structureId, side = 'center') {
+export function structureQuad(view, zoneId, structureId, side = 'center') {
   const zone = getZone(view, zoneId);
-  if (!zone) return null;
-  const { box, flip } = limbBox(view, zone, side);
-  const [lx0, ly0, lx1, ly1] = box;
+  const limb = limbFor(view, zoneId, side);
+  if (!zone || !limb) return null;
   const st = structureId ? zone.structures.find((x) => x.id === structureId) : null;
-  if (!st?.area) return [lx0, ly0, lx1, ly1];
-  const [fx0, fy0, fx1, fy1] = st.area;
-  const w = lx1 - lx0;
+  const [fx0, fy0, fx1, fy1] = st?.area || [0, 0, 1, 1];
+  const sided = zone.sided !== false && (side === 'left' || side === 'right');
+  // On the viewer's right the limb runs medial to lateral across the screen.
+  const flip = sided && viewerSide(view, side) === 'viewerRight';
+
+  const [ly0, ly1] = limb.y;
   const h = ly1 - ly0;
-  return [
-    flip ? lx1 - fx1 * w : lx0 + fx0 * w,
-    ly0 + fy0 * h,
-    flip ? lx1 - fx0 * w : lx0 + fx1 * w,
-    ly0 + fy1 * h,
-  ];
+  const edge = (y) => {
+    const t = h ? (y - ly0) / h : 0;
+    const a = limb.top[0] + (limb.bottom[0] - limb.top[0]) * t;
+    const b = limb.top[1] + (limb.bottom[1] - limb.top[1]) * t;
+    const w = b - a;
+    return flip ? [b - fx1 * w, b - fx0 * w] : [a + fx0 * w, a + fx1 * w];
+  };
+  const yA = ly0 + fy0 * h;
+  const yB = ly0 + fy1 * h;
+  const [ax0, ax1] = edge(yA);
+  const [bx0, bx1] = edge(yB);
+  return [[ax0, yA], [ax1, yA], [bx1, yB], [bx0, yB]];
 }
 
+/** The bounding box of a quad, for anything that needs a rectangle. */
+export const quadBounds = (quad) => (quad ? [
+  Math.min(...quad.map((p) => p[0])), Math.min(...quad.map((p) => p[1])),
+  Math.max(...quad.map((p) => p[0])), Math.max(...quad.map((p) => p[1])),
+] : null);
+
 /** The same, straight from a stored site. */
-export const siteArea = (site, structureId = site?.structure) => (site
-  ? structureArea(site.view, site.zone, structureId, site.side)
+export const siteQuad = (site, structureId = site?.structure) => (site
+  ? structureQuad(site.view, site.zone, structureId, site.side)
   : null);
+
+export const siteArea = (site, structureId = site?.structure) => quadBounds(siteQuad(site, structureId));
 
 /** Which letter goes on which side of the figure on screen. */
 export const sideLetters = (view) => (MIRRORED[view]

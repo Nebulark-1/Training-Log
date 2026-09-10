@@ -808,11 +808,10 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 .bm-lit .bm-path{fill:var(--flag); stroke:var(--flag); stroke-width:.6}
 .bm-litbox{
   fill:none; stroke:var(--flag); stroke-width:1.5; stroke-dasharray:5 3.5;
-  opacity:.7; pointer-events:none;
+  stroke-linejoin:round; opacity:.7; pointer-events:none;
 }
-clipPath rect,.bm-litbox{transition:x .14s ease, y .14s ease, width .14s ease, height .14s ease}
 @media (prefers-reduced-motion:reduce){
-  .bm-path,.bm-frame.open,clipPath rect,.bm-litbox{transition:none}
+  .bm-path,.bm-frame.open{transition:none}
 }
 
 .bm-pin circle{fill:none; stroke:var(--flag); stroke-width:2.5}
