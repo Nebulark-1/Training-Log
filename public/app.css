@@ -1012,3 +1012,137 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 @media (max-width:900px){
   .training{grid-template-columns:1fr}
 }
+
+/* ---- profile: just the circle; the rule beneath says it opens ------------ */
+.who-btn{padding:0 6px}
+.who-btn:hover{border-bottom-color:var(--run)}
+.menu.on>.who-btn{border-bottom-color:var(--run)}
+
+/* ---- the sheet head's tools, and a sheet opened to read ------------------ */
+.sheet-tools{display:flex; gap:8px; flex:none}
+.sheet-in.locked .btnrow:has(#fbSave),
+.sheet-in.locked .btnrow:has(#lxSave),
+.sheet-in.locked .addex,
+.sheet-in.locked [data-add-set],
+.sheet-in.locked [data-del-set],
+.sheet-in.locked .bm-free{display:none}
+.sheet-in.locked .bodymap{pointer-events:none}
+.sheet-in.locked .scale button:disabled{opacity:.35}
+.sheet-in.locked .scale button:disabled[aria-pressed="true"]{opacity:1}
+.sheet-in.locked textarea:disabled,.sheet-in.locked input:disabled{
+  background:transparent; border-color:var(--line2); color:var(--ink); opacity:1;
+}
+.log .row{cursor:pointer}
+.log .row:hover td{background:var(--ghost2)}
+.log .row:focus-visible{outline:2px solid var(--swim); outline-offset:-2px}
+
+/* ---- waiting on the coach ----------------------------------------------- */
+.workpanel{
+  display:flex; align-items:center; gap:14px; padding:12px 16px; margin-top:14px;
+  border:1px solid var(--line); background:var(--card); border-left:3px solid var(--run);
+  font-family:'Barlow Condensed',sans-serif;
+}
+.workpanel .pulse{
+  width:10px; height:10px; border-radius:50%; background:var(--run); flex:none;
+  animation:cc-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cc-pulse{0%,100%{transform:scale(.7); opacity:.45}50%{transform:scale(1.15); opacity:1}}
+.wp-text{display:flex; flex-direction:column; gap:1px; min-width:0; flex:1}
+.wp-text b{font-size:16px; font-weight:600; color:var(--ink)}
+.wp-text span{font-size:14.5px; color:var(--mut)}
+.workpanel .elapsed{font-size:14px; color:var(--faint); font-variant-numeric:tabular-nums}
+.workpanel .link{font-size:14px}
+.thinking.floating{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:55;
+  width:min(560px, calc(100% - 32px));
+}
+.thinking.floating .workpanel{margin:0; box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.thinking.floating.err{
+  background:var(--card); border:1px solid var(--flag); padding:12px 16px;
+  font-family:'Barlow Condensed',sans-serif;
+}
+@media (prefers-reduced-motion:reduce){.workpanel .pulse{animation:none; opacity:1}}
+
+/* ---- plan: segmented tabs you cannot miss, the digest at the side --------- */
+.seg{
+  display:inline-flex; border:1px solid var(--ink); margin:2px 0 22px;
+  font-family:'Barlow Condensed',sans-serif;
+}
+.seg button{
+  border:0; background:transparent; padding:8px 22px; font-size:15px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--mut); cursor:pointer;
+}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button.on{background:var(--ink); color:var(--paper)}
+.seg button:hover:not(.on){color:var(--ink); border-color:var(--ink)}
+
+.ask{
+  position:fixed; right:0; top:82px; bottom:auto; z-index:45; width:min(420px, calc(100% - 24px));
+  background:var(--raise); border:1px solid var(--line); border-right:0; border-top:3px solid var(--run);
+  padding:16px 18px 18px; box-shadow:-8px 12px 30px rgba(0,0,0,.1);
+}
+.ask-head{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:2px}
+.ask-head b{font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:600}
+.ask textarea{width:100%; min-height:150px; margin:8px 0 12px}
+.ask .btnrow{flex-wrap:wrap}
+.x{
+  background:none; border:0; padding:2px 6px; font-size:22px; line-height:1; color:var(--mut);
+  cursor:pointer;
+}
+.x:hover{color:var(--ink); border:0}
+.ask-tab{
+  position:fixed; right:0; top:120px; z-index:45; writing-mode:vertical-rl; transform:rotate(180deg);
+  padding:12px 8px; border:1px solid var(--line); border-top:0; background:var(--raise);
+  border-left:3px solid var(--run); font-size:13px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink2);
+}
+.ask-tab:hover{color:var(--ink)}
+.quiet-actions{
+  display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:8px;
+  font-family:'Barlow Condensed',sans-serif; font-size:14px;
+}
+.mutlink{color:var(--mut)!important}
+
+/* ---- previous weeks: two voices, each foldable --------------------------- */
+.xw{border-top:1px solid var(--line2); padding:4px 0}
+.xw>summary{
+  display:flex; align-items:center; gap:12px; padding:9px 0; cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif; font-size:16px; list-style:none;
+}
+.xw>summary::-webkit-details-marker{display:none}
+.xw>summary::before{content:"\25B8"; color:var(--faint); font-size:12px; width:12px}
+.xw[open]>summary::before{content:"\25BE"}
+.xw>summary b{font-weight:600}
+.xw-you,.xw-coach{margin:2px 0 12px 22px}
+.xw-you>summary,.xw-coach>summary{
+  cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-size:12.5px;
+  text-transform:uppercase; letter-spacing:.11em; color:var(--mut); padding:4px 0;
+}
+.xw-you blockquote{
+  margin:6px 0 0; padding:10px 16px; border-left:3px solid var(--line); color:var(--ink2);
+  font-size:16px; line-height:1.55; white-space:pre-wrap;
+}
+.xw-coach .coach{margin-top:6px}
+
+/* ---- training: the coach's summary that folds to its focus line ---------- */
+.coach.strip{position:relative; margin:18px 0 0; padding-right:44px}
+.coach.strip .coachtext p:first-child{font-size:17.5px}
+.coach.strip .x{position:absolute; top:12px; right:12px}
+.coach-more{
+  display:inline-block; margin-top:4px; font-family:'Barlow Condensed',sans-serif; font-size:13px;
+  text-transform:uppercase; letter-spacing:.11em; color:var(--mut);
+}
+.adj-fold{margin-top:8px}
+.adj-fold>summary{
+  cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-size:12.5px;
+  text-transform:uppercase; letter-spacing:.11em; color:var(--mut); list-style:none;
+}
+.adj-fold>summary::-webkit-details-marker{display:none}
+.adj-fold>summary::before{content:"\25B8  "; color:var(--faint)}
+.adj-fold[open]>summary::before{content:"\25BE  "}
+.adj-fold .adj{margin-top:6px}
+.coach-fold{
+  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin:18px 0 0;
+  padding:10px 14px; border-left:3px solid var(--run); background:var(--card); font-size:16.5px;
+}
+.coach-fold .link{font-size:14px}

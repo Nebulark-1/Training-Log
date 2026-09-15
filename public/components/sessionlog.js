@@ -3,7 +3,7 @@
 import { mountBodyMap } from './bodymap.js';
 import { SPORTS, isStrength, sportKey } from '../lib/sports.js';
 import {
-  closeSheet, comma, esc, FEEL, hm, longDate, mmss, n0, n1, openSheet, toast,
+  closeSheet, comma, esc, FEEL, hm, lockSheet, longDate, mmss, n0, n1, openSheet, sheetHead, toast,
 } from '../lib/ui.js';
 
 /** The measured facts of a session, as a compact strip. */
@@ -63,13 +63,15 @@ function splitTable(s) {
 }
 
 /** The post-session note for an endurance session. */
-export function openFeedback(session, ctx) {
+export function openFeedback(session, ctx, { readOnly = false } = {}) {
   const f = ctx.data.feedback?.[session.id] || {};
   openSheet(
-    `<div class="sheet-head"><div><h3>${esc(session.name || SPORTS[sportKey(session.sport)]?.label || session.sport)}</h3>`
-    + `<p>${longDate(session.date)} &middot; ${esc(SPORTS[sportKey(session.sport)]?.label || session.sport)}`
-    + `${session.source === 'manual' ? ' &middot; logged by hand' : ''}</p></div>`
-    + '<button type="button" data-close="1">Close</button></div>'
+    sheetHead(
+      session.name || SPORTS[sportKey(session.sport)]?.label || session.sport,
+      `${longDate(session.date)} &middot; ${esc(SPORTS[sportKey(session.sport)]?.label || session.sport)}`
+        + `${session.source === 'manual' ? ' &middot; logged by hand' : ''}`,
+      { readOnly },
+    )
     + (actualLine(session, null) ? `<div class="slot-actual" style="border-top:0;padding-top:0">${actualLine(session, null)}</div>` : '')
     + splitTable(session)
     + '<div style="height:16px"></div>'
@@ -95,8 +97,10 @@ export function openFeedback(session, ctx) {
         }
       };
       syncMap();
+      lockSheet(root, readOnly);
 
       root.addEventListener('click', async (e) => {
+        if (e.target.id === 'sheetEdit') { lockSheet(root, false); return; }
         const b = e.target.closest('[data-val]');
         if (b) {
           const wrap = b.closest('[data-scale]');

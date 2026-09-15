@@ -35,7 +35,7 @@ export default {
       const detail = strength && s.lifts?.length
         ? `${s.lifts.length} lifts, ${s.lifts.reduce((n, l) => n + l.sets.length, 0)} sets`
         : '';
-      return '<tr>'
+      return `<tr class="row" data-open="${esc(s.id)}" tabindex="0">`
         + `<td>${shortDate(s.date)}</td>`
         + `<td><span class="sport ${esc(key)}"><s></s>${esc(SPORTS[key]?.label || key)}</span></td>`
         + `<td class="name">${esc(s.name || '')}${detail ? `<span class="mut"> · ${esc(detail)}</span>` : ''}</td>`
@@ -47,8 +47,6 @@ export default {
         + `<td class="r">${f.rpe || '—'}</td>`
         + `<td>${f.feel ? esc(FEEL[f.feel] || f.feel) : '—'}`
         + `${f.pain ? ` <span class="chip pain">pain ${f.pain}</span>` : ''}</td>`
-        + `<td class="r"><button class="link" data-open="${esc(s.id)}">`
-        + `${strength ? (s.lifts?.length ? 'sets' : 'log sets') : (f.loggedAt ? 'note' : 'add note')}</button></td>`
         + '</tr>';
     }).join('');
 
@@ -59,10 +57,10 @@ export default {
     })
       + `<div class="tabs spread">${tabs}</div>`
       + (sessions.length
-        ? '<div class="tablewrap"><table><thead><tr>'
+        ? '<div class="tablewrap log"><table><thead><tr>'
           + '<th>Date</th><th>Sport</th><th>What</th><th class="r">Dist</th><th class="r">Time</th>'
           + '<th class="r">Pace</th><th class="r">HR</th><th class="r">Elev</th>'
-          + '<th class="r">RPE</th><th>Feel</th><th></th>'
+          + '<th class="r">RPE</th><th>Feel</th>'
           + `</tr></thead><tbody>${rows}</tbody></table></div>`
         : '<div class="emptystate"><p>Nothing here yet. '
           + (ctx.data.connections?.strava?.connected
@@ -72,19 +70,30 @@ export default {
   },
 
   mount(ctx, root) {
+    // A row is a record: opening it reads, and editing is a deliberate step.
+    const openRow = (id) => {
+      const session = ctx.data.sessions.find((s) => s.id === id);
+      if (!session) return;
+      const fb = ctx.data.feedback?.[session.id] || {};
+      if (isStrength(session.sport)) {
+        openLiftLog(session, prescriptionFor(ctx, session), ctx, fb, { readOnly: Boolean(session.lifts?.length) });
+      } else {
+        openFeedback(session, ctx, { readOnly: Boolean(fb.loggedAt) });
+      }
+    };
     root.addEventListener('click', (e) => {
       const tab = e.target.closest('[data-filter]');
       if (tab) { filter = tab.getAttribute('data-filter'); ctx.rerender(); return; }
       if (e.target.id === 'logManual') { openManual(ctx, {}); return; }
       const open = e.target.closest('[data-open]');
-      if (!open) return;
-      const session = ctx.data.sessions.find((s) => s.id === open.getAttribute('data-open'));
-      if (!session) return;
-      if (isStrength(session.sport)) {
-        openLiftLog(session, prescriptionFor(ctx, session), ctx, ctx.data.feedback?.[session.id] || {});
-      } else {
-        openFeedback(session, ctx);
-      }
+      if (open) openRow(open.getAttribute('data-open'));
+    });
+    root.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest?.('[data-open]');
+      if (!row) return;
+      e.preventDefault();
+      openRow(row.getAttribute('data-open'));
     });
   },
 };

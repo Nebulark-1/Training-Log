@@ -20,6 +20,44 @@ import {
 let dayOffset = 0;
 let editing = false;
 
+/**
+ * Whether the coach's summary for a week has been folded to its one line.
+ * Keyed by the plan's own timestamp, so a re-plan unfolds it again.
+ */
+const foldKey = (wk) => `cc.fold.${wk.week}.${wk.generatedAt || ''}`;
+const isFolded = (wk) => { try { return localStorage.getItem(foldKey(wk)) === '1'; } catch { return false; } };
+const setFolded = (wk, v) => { try { localStorage.setItem(foldKey(wk), v ? '1' : '0'); } catch { /* fine */ } };
+
+/** Three to five sentences from the coach; older plans fall back to the first paragraph. */
+const summaryOf = (wk) => wk.summary || String(wk.coachNote || '').split(/\n\n+/)[0] || '';
+
+/**
+ * What the coach said, sized for the training page: a short paragraph that
+ * folds to the focus line and stays folded until the week is planned again.
+ * The full note lives on the Plan page; the adjustments fold away here.
+ */
+function coachStrip(wk) {
+  if (!wk?.coachNote && !wk?.summary) return '';
+  const folded = isFolded(wk);
+  const list = wk.adjustments?.length
+    ? '<details class="adj-fold"><summary>What changed</summary>'
+      + `<ul class="adj">${wk.adjustments.map((a) => `<li>${esc(a)}</li>`).join('')}</ul></details>`
+    : '';
+  if (folded) {
+    return '<div class="coach-fold">'
+      + coachLine(wk.focus || summaryOf(wk).split(/(?<=\.)\s/)[0])
+      + '<button type="button" class="link mutlink" id="coachUnfold">More</button>'
+      + '</div>';
+  }
+  return coachBlock({
+    body: summaryOf(wk),
+    verdict: wk.verdict,
+    cls: 'strip',
+    extra: list + '<button type="button" class="x" id="coachFold" aria-label="Fold">&times;</button>'
+      + '<a class="coach-more" href="/plan" data-link>Full note</a>',
+  });
+}
+
 const viewDate = (ctx) => {
   const d = parseYmd(ctx.data.today);
   d.setDate(d.getDate() + dayOffset);
@@ -319,7 +357,7 @@ export default {
     return pageHead({
       eyebrow: 'Training',
       title: isThis ? 'This week' : weekKey,
-      note: wk?.focus ? coachLine(wk.focus) : (wk?.deload ? 'Deload week' : ''),
+      note: wk?.deload ? 'Deload week' : '',
       actions: '<div class="daynav">'
         + '<button data-week="-1" aria-label="Previous week">&lsaquo;</button>'
         + `<span class="wk-label">${esc(weekKey)}</span>`
@@ -328,14 +366,12 @@ export default {
         + '</div>',
     })
       + scoreStrip(ctx)
+      + coachStrip(wk)
       + (tiles ? `<div class="voltiles">${tiles}</div>` : '')
       + '<div class="training">'
       + `<section class="card wk rail">${weekRail(ctx, weekKey, date)}</section>`
       + `<div class="pane">${dayPane(ctx, date)}</div>`
       + '</div>'
-      + (wk?.coachNote
-        ? coachBlock({ body: wk.coachNote, verdict: wk.verdict, list: wk.adjustments || [] })
-        : '')
       + violationList(wk?.violations)
       + `<div class="btnrow" style="margin-top:18px">${weekActions.join('')}</div>`
       + '<div class="thinking" id="workStatus" hidden></div>';
@@ -375,6 +411,12 @@ export default {
         return;
       }
       if (t.id === 'toggleEdit') { editing = !editing; ctx.rerender(); return; }
+      if (t.id === 'coachFold' || t.id === 'coachUnfold') {
+        const wk = ctx.data.weeks?.[isoWeek(parseYmd(viewDate(ctx)))];
+        if (wk) setFolded(wk, t.id === 'coachFold');
+        ctx.rerender();
+        return;
+      }
 
       const weekKey = isoWeek(parseYmd(viewDate(ctx)));
       const move = t.closest('[data-move]');
@@ -405,7 +447,7 @@ export default {
         const { work } = await import('../app.js');
         const out = await work(`Planning ${week}`, (signal) => (
           ctx.api('/api/coach/plan-week', { method: 'POST', body: { week }, signal })
-        ));
+        ), { kind: 'plan-week' });
         if (out && !out.error) {
           await ctx.refresh();
           ctx.toast(`${week} planned: ${out.week.verdict}.`);

@@ -209,20 +209,13 @@ export default {
     }
     root.addEventListener('click', async (e) => {
       if (e.target.id === 'assessGoal') {
-        const status = root.querySelector('#assessStatus');
         const goalId = ctx.fitness?.primaryGoalId;
         if (!goalId) return;
-        e.target.disabled = true;
-        status.className = 'thinking';
-        status.textContent = 'Reading the log\u2026';
-        try {
-          await ctx.api(`/api/goals/${encodeURIComponent(goalId)}/assess`, { method: 'POST', body: {} });
-          await ctx.loadFitness();
-        } catch (err) {
-          e.target.disabled = false;
-          status.className = 'thinking err';
-          status.textContent = err.message;
-        }
+        const { work } = await import('../app.js');
+        const out = await work('Assessing the goal', (signal) => (
+          ctx.api(`/api/goals/${encodeURIComponent(goalId)}/assess`, { method: 'POST', body: {}, signal })
+        ), { statusId: 'assessStatus', kind: 'assess' });
+        if (out && !out.error) await ctx.loadFitness();
         return;
       }
       const tab = e.target.closest('[data-sport]');

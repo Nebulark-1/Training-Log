@@ -6,7 +6,7 @@
 // a single "3x5 @ 225" row cannot tell you the third set only got three.
 import { mountBodyMap } from './bodymap.js';
 import { CATALOG, bestSet, e1rm, guessPattern, movementId } from '../lib/movements.js';
-import { closeSheet, esc, longDate, n0, openSheet, toast } from '../lib/ui.js';
+import { closeSheet, esc, lockSheet, longDate, n0, openSheet, sheetHead, toast } from '../lib/ui.js';
 
 const blankSet = () => ({ reps: '', lb: '', rpe: '' });
 
@@ -87,7 +87,7 @@ function exerciseBlock(row, idx) {
  * @param prescription resolved exercises from the strength program
  * @param ctx          { api, refresh }
  */
-export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
+export function openLiftLog(session, prescription, ctx, existingFeedback = {}, { readOnly = false } = {}) {
   const rows = seedRows(session, prescription || []);
   const fb = { ...existingFeedback };
 
@@ -104,10 +104,12 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
     + '</section>';
 
   const inner = openSheet(
-    `<div class="sheet-head"><div><h3>${esc(session.name || 'Strength')}</h3>`
-    + `<p>${longDate(session.date)}${session.movingMin ? ` &middot; ${n0(session.movingMin)} min` : ''}`
-    + `${prescription?.length ? ` &middot; program session ${esc(prescription[0]?.programSession || '')}` : ''}</p></div>`
-    + '<button type="button" data-close="1">Close</button></div>'
+    sheetHead(
+      session.name || 'Strength',
+      `${longDate(session.date)}${session.movingMin ? ` &middot; ${n0(session.movingMin)} min` : ''}`
+        + `${prescription?.length ? ` &middot; program session ${esc(prescription[0]?.programSession || '')}` : ''}`,
+      { readOnly },
+    )
     + datalist
     + `<div id="lxBody">${body()}</div>`
     + '<div class="lx-fb">'
@@ -135,6 +137,10 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
       };
       syncMap();
       root.querySelector('#lfPain').addEventListener('input', syncMap);
+      lockSheet(root, readOnly);
+      root.addEventListener('click', (e) => {
+        if (e.target.id === 'sheetEdit') lockSheet(root, false);
+      });
 
       // Pull every input back into state before any structural re-render.
       const sync = () => {

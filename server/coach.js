@@ -108,6 +108,10 @@ export const WeekPlanSchema = z.object({
   deload: z.boolean(),
   verdict: z.string().describe('exactly one of: push, hold, back off'),
   focus: z.string().describe("one short line naming the week's job"),
+  summary: z.string().describe(
+    'Three to five plain sentences: what this week is, why, and the one thing to watch. '
+    + 'This is what the athlete sees first; the full note is read separately.',
+  ),
   coachNote: z.string().describe('2-4 short paragraphs separated by blank lines'),
   adjustments: z.array(z.string()).describe('specific changes from last week'),
   days: z.array(DaySchema).describe('exactly 7, Monday first'),
@@ -265,40 +269,67 @@ async function ask(userId, kind, schema, userText) {
   }
   const { client } = clientFor(userId);
 
-  const base = {
+  const request = (effort) => ({
     model: config.anthropic.model,
-    max_tokens: 16000,
+    // Room for the thinking and the answer both. A structured reply that runs
+    // out of tokens mid-thought comes back with no text block at all.
+    max_tokens: 32000,
     thinking: { type: 'adaptive' },
     system: [{ type: 'text', text: RULES, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: userText }],
-    output_config: { effort: config.anthropic.effort, format: betaZodOutputFormat(schema) },
-  };
+    output_config: { effort, format: betaZodOutputFormat(schema) },
+  });
 
-  const send = (withFallbacks) => client.beta.messages.parse(
-    withFallbacks ? { ...base, betas: [FALLBACK_BETA], fallbacks: 'default' } : base,
+  const send = (withFallbacks, effort) => client.beta.messages.parse(
+    withFallbacks
+      ? { ...request(effort), betas: [FALLBACK_BETA], fallbacks: 'default' }
+      : request(effort),
   );
 
-  let message;
-  try {
-    message = await send(config.anthropic.fallbacks);
-  } catch (err) {
-    const msg = String(err?.message || '');
-    if (config.anthropic.fallbacks && err?.status === 400 && /fallback|beta/i.test(msg)) {
-      console.warn('[coach] server-side fallbacks rejected, retrying without:', msg.slice(0, 160));
-      message = await send(false);
-    } else {
+  let withFallbacks = config.anthropic.fallbacks;
+  const attempt = async (effort) => {
+    try {
+      return await send(withFallbacks, effort);
+    } catch (err) {
+      const msg = String(err?.message || '');
+      if (withFallbacks && err?.status === 400 && /fallback|beta/i.test(msg)) {
+        console.warn('[coach] server-side fallbacks rejected, retrying without:', msg.slice(0, 160));
+        withFallbacks = false;
+        return send(false, effort);
+      }
       logCoachRun(userId, kind, { ok: false, ms: Date.now() - started, error: msg.slice(0, 400) });
       throw err;
     }
+  };
+
+  let message = await attempt(config.anthropic.effort);
+
+  // What came back, for the log: block types and where it stopped. Without
+  // this an empty reply is indistinguishable from a wrong one.
+  const shape = (m) => `${m.stop_reason}; blocks: ${(m.content || []).map((b) => b.type).join(',') || 'none'}`;
+
+  if (message.stop_reason === 'max_tokens' && !message.parsed_output) {
+    // The whole budget went on thinking and no answer was written. Ask again
+    // with less deliberation rather than hand the athlete an error.
+    console.warn(`[coach] ${kind}: out of tokens before answering (${shape(message)}); retrying at lower effort`);
+    message = await attempt('medium');
   }
 
   if (message.stop_reason === 'refusal') {
-    logCoachRun(userId, kind, { model: message.model, ms: Date.now() - started, ok: false, error: 'refusal' });
+    logCoachRun(userId, kind, { model: message.model, usage: message.usage, ms: Date.now() - started, ok: false, error: 'refusal' });
     throw Object.assign(new Error('Claude declined this request. Try rewording it.'), { code: 'refused' });
   }
   if (!message.parsed_output) {
-    logCoachRun(userId, kind, { model: message.model, ms: Date.now() - started, ok: false, error: 'unparsed' });
-    throw Object.assign(new Error("Claude's answer did not match the expected shape. Try again."), { code: 'invalid_json' });
+    logCoachRun(userId, kind, {
+      model: message.model, usage: message.usage, ms: Date.now() - started, ok: false,
+      error: `no answer: ${shape(message)}`.slice(0, 400),
+    });
+    throw Object.assign(
+      new Error(message.stop_reason === 'max_tokens'
+        ? 'Claude ran out of room before finishing. Try again.'
+        : 'Claude came back without an answer. Try again.'),
+      { code: 'no_answer' },
+    );
   }
 
   logCoachRun(userId, kind, {
@@ -635,6 +666,7 @@ export function applyWeek(userId, weekKey, out, source = 'claude', { force = fal
     deload: Boolean(out.deload),
     verdict: verdictOf(out.verdict),
     focus: out.focus || null,
+    summary: String(out.summary || '').trim() || null,
     coachNote: out.coachNote || null,
     adjustments: (out.adjustments || []).slice(0, 8),
     days,

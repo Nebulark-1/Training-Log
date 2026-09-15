@@ -157,9 +157,9 @@ function renderChrome() {
   const name = user?.name || user?.email || 'Athlete';
   $('who').innerHTML = user
     ? '<div class="menu" data-menu>'
-      + '<button type="button" class="menu-btn who-btn" aria-haspopup="true" aria-expanded="false">'
+      + `<button type="button" class="menu-btn who-btn" aria-haspopup="true" aria-expanded="false" aria-label="${esc(name)}" title="${esc(name)}">`
       + (user.picture ? `<img src="${esc(user.picture)}" alt="">` : `<b>${esc(name.trim().charAt(0).toUpperCase() || 'A')}</b>`)
-      + `<span>${esc(name)}</span><i></i></button>`
+      + '</button>'
       + '<div class="menu-list right" hidden>'
       + `<a href="/settings" data-link${path === '/settings' ? ' class="on"' : ''}>Settings</a>`
       + '<a href="/api/export">Export</a>'
@@ -282,51 +282,125 @@ document.addEventListener('keydown', (e) => {
 
 // --- shared long-running work ---------------------------------------------
 /**
- * Run a slow call with an elapsed timer and a Stop button, reported in the
- * page's own status slot when it has one.
+ * What the coach is doing while you wait, per kind of call.
+ *
+ * A model call takes half a minute to a minute, and nothing on screen for that
+ * long reads as broken. These lines rotate through the panel so the wait has a
+ * shape: what is being read, what is being weighed, what is being written.
+ * They are honest about the order things happen in without pretending to
+ * know progress that the request does not report.
  */
-export async function work(label, fn, { statusId = 'workStatus' } = {}) {
+const PHASES = {
+  'plan-week': [
+    'Reading the last few weeks of training',
+    'Checking what was planned against what happened',
+    'Reading your notes and where it has hurt',
+    'Weighing the volume step against the guardrails',
+    'Laying out the seven days',
+    'Writing the note',
+  ],
+  review: [
+    'Reading your digest',
+    'Comparing it with the numbers from the week',
+    'Deciding whether next week pushes or holds',
+    'Writing the review',
+    'Planning next week from it',
+  ],
+  'build-plan': [
+    'Reading your whole history',
+    'Finding the volumes you have actually held',
+    'Working out the phases between here and the goal',
+    'Setting week-by-week targets',
+    'Writing the rationale',
+  ],
+  'program-review': [
+    'Reading every logged lift',
+    'Checking which movements are progressing and which have stalled',
+    'Ruling on anything you did off program',
+    'Deciding what, if anything, to change',
+  ],
+  assess: [
+    'Reading the log',
+    'Measuring the ramp against the one you have held before',
+    'Checking whether planned weeks are happening',
+    'Reading the strength trend and where it has hurt',
+    'Weighing it all against the goal',
+    'Writing the assessment',
+  ],
+  sync: [
+    'Asking Strava for new activities',
+    'Pulling splits and heart rate',
+    'Filing everything by week',
+  ],
+};
+
+/**
+ * Run a slow call with a visible sense of what is happening: a pulsing mark,
+ * the current phase, the time elapsed, and a way to stop. Reported in the
+ * page's own status slot when it has one; otherwise in a bar at the bottom.
+ */
+export async function work(label, fn, { statusId = 'workStatus', kind = null } = {}) {
   if (state.busy) return undefined;
   state.busy = true;
-  const status = $(statusId);
   const started = Date.now();
   const controller = new AbortController();
+  const phases = PHASES[kind] || [label];
   let tick = null;
 
-  if (status) {
-    status.hidden = false;
-    status.className = 'thinking';
-    status.innerHTML = `<span class="working">${esc(label)}…</span>`;
-    tick = setInterval(() => {
-      const s = Math.round((Date.now() - started) / 1000);
-      status.innerHTML = `<span class="working">${esc(label)} — <span class="elapsed">${s}s</span></span>`
-        + ' <button class="link" id="stopWork">Stop</button>';
-    }, 250);
-    status.addEventListener('click', (e) => {
-      if (e.target.id === 'stopWork') controller.abort();
-    }, { once: false });
+  let status = $(statusId);
+  let floating = false;
+  if (!status) {
+    status = document.createElement('div');
+    status.id = 'workFloat';
+    document.body.appendChild(status);
+    floating = true;
   }
-  document.querySelectorAll('button:not([data-close])').forEach((b) => { b.dataset.wasEnabled = b.disabled ? '' : '1'; b.disabled = true; });
+
+  const draw = () => {
+    const s = Math.round((Date.now() - started) / 1000);
+    // Phases advance on a curve that slows down, so the last one does not
+    // arrive long before the answer does.
+    const idx = Math.min(phases.length - 1, Math.floor(Math.log1p(s / 6) * 2.2));
+    status.innerHTML = '<div class="workpanel">'
+      + '<span class="pulse"></span>'
+      + `<div class="wp-text"><b>${esc(label)}</b><span>${esc(phases[idx])}…</span></div>`
+      + `<span class="elapsed">${s}s</span>`
+      + '<button type="button" class="link" id="stopWork">Stop</button>'
+      + '</div>';
+  };
+
+  status.hidden = false;
+  status.className = `thinking${floating ? ' floating' : ''}`;
+  draw();
+  tick = setInterval(draw, 1000);
+  const onStop = (e) => { if (e.target.id === 'stopWork') controller.abort(); };
+  status.addEventListener('click', onStop);
+
+  document.querySelectorAll('button:not([data-close]):not(#stopWork)').forEach((b) => {
+    b.dataset.wasEnabled = b.disabled ? '' : '1';
+    b.disabled = true;
+  });
 
   try {
     const out = await fn(controller.signal);
-    if (status) { status.textContent = ''; status.hidden = true; }
+    status.textContent = '';
+    status.hidden = true;
     return out;
   } catch (err) {
     if (err.name === 'AbortError') {
-      if (status) status.hidden = true;
+      status.hidden = true;
       toast('Stopped.');
       return undefined;
     }
-    if (status) {
-      status.hidden = false;
-      status.className = 'thinking err';
-      status.textContent = err.message;
-    }
+    status.hidden = false;
+    status.className = `thinking err${floating ? ' floating' : ''}`;
+    status.textContent = err.message;
     toast(err.message, true);
     return { error: err };
   } finally {
     if (tick) clearInterval(tick);
+    status.removeEventListener('click', onStop);
+    if (floating) setTimeout(() => status.remove(), status.classList.contains('err') ? 6000 : 0);
     state.busy = false;
     document.querySelectorAll('button').forEach((b) => {
       if (b.dataset.wasEnabled === '1') b.disabled = false;
@@ -338,7 +412,7 @@ export async function work(label, fn, { statusId = 'workStatus' } = {}) {
 export async function runSync(full = false) {
   const out = await work(full ? 'Re-syncing everything from Strava' : 'Syncing Strava', (signal) => (
     api('/api/strava/sync', { method: 'POST', body: { full }, signal })
-  ));
+  ), { kind: 'sync' });
   if (out && !out.error) {
     state.fitness = null;
     await refresh();

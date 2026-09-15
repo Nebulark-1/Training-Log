@@ -93,6 +93,7 @@ function reportViolations(violations) {
  */
 function validate(kind, data) {
   if (kind === 'plan-week') {
+    if (typeof data.summary !== 'string') data.summary = '';
     for (const day of data.days || []) {
       for (const s of day.sessions || []) {
         if (typeof s.programSession !== 'string') s.programSession = '';

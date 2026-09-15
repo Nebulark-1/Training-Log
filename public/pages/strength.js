@@ -202,7 +202,7 @@ export default {
       const { work } = await import('../app.js');
       const out = await work('Reviewing the program', (signal) => (
         ctx.api('/api/coach/program-review', { method: 'POST', signal })
-      ));
+      ), { kind: 'program-review' });
       if (!out) return;
       if (out.error) {
         const payload = out.error.payload;

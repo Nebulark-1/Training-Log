@@ -176,3 +176,29 @@ export function needsClaude(label) {
 export const coachLine = (text) => (text
   ? `<span class="coach-line"><i></i>${esc(text)}</span>`
   : '');
+
+/**
+ * A sheet opened to read, not to change.
+ *
+ * Every control inside is disabled and the save row is hidden; an Edit button
+ * in the head unlocks it. Logging something new opens editable; reviewing a
+ * record opens locked, because a record should not change by being looked at.
+ */
+export function lockSheet(root, locked) {
+  root.classList.toggle('locked', locked);
+  root.querySelectorAll('input, textarea, select, button').forEach((el) => {
+    if (el.matches('[data-close], #sheetEdit')) return;
+    el.disabled = locked;
+  });
+  const edit = root.querySelector('#sheetEdit');
+  if (edit) edit.hidden = !locked;
+}
+
+/** The head of a sheet, with Edit beside Close when it opens locked. */
+export function sheetHead(title, sub, { readOnly = false } = {}) {
+  return `<div class="sheet-head"><div><h3>${esc(title)}</h3>`
+    + (sub ? `<p>${sub}</p>` : '')
+    + '</div><div class="sheet-tools">'
+    + (readOnly ? '<button type="button" id="sheetEdit">Edit</button>' : '')
+    + '<button type="button" data-close="1">Close</button></div></div>';
+}
