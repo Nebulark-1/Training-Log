@@ -1,0 +1,5 @@
+# Shell scripts and container files must stay LF even on a Windows checkout,
+# or the Linux side refuses to run them.
+*.sh text eol=lf
+Dockerfile text eol=lf
+deploy/** text eol=lf
