@@ -269,26 +269,43 @@ high comes down, so any score that tracks current volume will correlate with
 what follows whether or not it knows anything. A score earns its place by
 beating that column, and right now confidence does not.
 
-## Connecting Claude
+## Accounts, plans, and who pays
 
-There is no OAuth flow for a Claude.ai subscription, so a web app cannot spend
-your Claude plan. Coaching runs on the Anthropic API instead, and there are
-three ways to pay for it:
+The server pays for every account's coaching, from `ANTHROPIC_API_KEY` in
+`.env` (or an `ant auth login` profile on the machine). The plan an account is
+on decides which model coaches it and how much coaching it gets a month.
 
-| Option | Set up | Billed to |
-| --- | --- | --- |
-| An `ant auth login` profile on this machine | `ant auth login` | you, no key to manage |
-| A server key | `ANTHROPIC_API_KEY` in `.env` | whoever runs the server |
-| Each user's own key | **Setup → Your Anthropic API key** | that user |
+| Plan | Routine work (weekly plan, digest review) | Key work (goal, program, season) | Monthly coaching budget | Price |
+| --- | --- | --- | --- | --- |
+| Basic | Sonnet | Sonnet | $1.50 of compute | $5 |
+| Plus | Sonnet | Opus | $3 | $10 |
+| Expert | Opus | Opus | $8 | $20 |
 
-The user's own key wins when present, then the server key, then an ambient
-profile. User keys are stored encrypted and used only for that user's requests.
-Set `ALLOW_USER_KEYS=0` to turn that off.
+Effort is `high` on every plan. Sonnet is cheap enough that thinking less is
+not where the saving is, and the weekly plan is the product; it should not be
+the thing that is worse on the entry tier. Budgets are metered in what calls
+actually cost — every run is priced at write time into `coach_runs.cost` — and
+a plan's month is about three normal months of coaching, so the only way to
+run out is to keep pressing Re-plan. When it happens the button says so and
+names the date it resets.
 
-Requests use `claude-opus-5` with adaptive thinking, `effort: high`, structured
-outputs validated against a schema before anything is stored, and server-side
-refusal fallbacks (set `CLAUDE_FALLBACKS=0` to disable). Every call is recorded
-in the `coach_runs` table with model, token usage and duration.
+Plans live in `server/tiers.js`. Nothing takes money yet: accounts land on
+Basic, and while the door is closed the tier is whatever you set it to.
+
+```
+OWNER_EMAIL=you@gmail.com          # this account is Expert and never metered
+ALLOWED_EMAILS=a@gmail.com,b@...   # optional: who may create an account
+```
+
+Signing in is Google only, so every account has a verified address. With no
+Google credentials set, the local account stands in for the owner. Bring-your-
+own-key is gone: a plan that pays for coaching cannot also let a user route
+around it.
+
+Requests use adaptive thinking, structured outputs validated against a schema
+before anything is stored, and server-side refusal fallbacks (set
+`CLAUDE_FALLBACKS=0` to disable). Every call is recorded in `coach_runs` with
+model, token usage, duration and cost.
 
 ## Coaching without an API key
 

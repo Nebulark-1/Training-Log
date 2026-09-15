@@ -168,7 +168,28 @@ export const MIGRATIONS = [
         ON goal_assessments(user_id, goal_id, created_at DESC);
     `),
   },
+  {
+    version: 3,
+    name: 'tiers and metered coaching',
+    // Accounts get a plan, and every coaching call records what it cost, so
+    // a month's spend is a sum rather than a re-pricing of stored usage.
+    // The per-user Anthropic key is retired: the server pays, the plan decides
+    // the model. The column stays, empty, because dropping a column rewrites
+    // the table and there is nothing to gain from it.
+    up: (db) => {
+      // SQLite has no ADD COLUMN IF NOT EXISTS, and a step should be safe to
+      // run against a database that somehow already has its work done.
+      addColumn(db, 'users', 'tier', "TEXT NOT NULL DEFAULT 'basic'");
+      addColumn(db, 'coach_runs', 'cost', 'REAL NOT NULL DEFAULT 0');
+      db.exec('UPDATE settings SET anthropic_key = NULL WHERE anthropic_key IS NOT NULL');
+    },
+  },
 ];
+
+function addColumn(db, table, column, definition) {
+  const has = db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name = ?`).get(column);
+  if (!has) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
 
 export const LATEST = MIGRATIONS.reduce((n, m) => Math.max(n, m.version), 0);
 

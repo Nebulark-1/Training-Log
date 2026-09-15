@@ -106,6 +106,29 @@ function goalSheet(ctx, existing) {
   );
 }
 
+const MODEL_NAME = { 'claude-opus-5': 'Opus', 'claude-sonnet-5': 'Sonnet' };
+
+/** The plan this account is on, and how much of the month's coaching is used. */
+function planCard(claude) {
+  const p = claude.plan;
+  if (!p) return '';
+  const models = p.models.routine === p.models.key
+    ? `${MODEL_NAME[p.models.key] || p.models.key} for everything`
+    : `${MODEL_NAME[p.models.key] || p.models.key} for the goal and the program, `
+      + `${MODEL_NAME[p.models.routine] || p.models.routine} for the week`;
+  return '<div class="conn plan">'
+    + `<h3><span class="dot ${claude.available ? 'on' : 'off'}"></span>${esc(p.label)}`
+    + `${p.owner ? '<span class="chip done">owner</span>' : `<span class="mut">$${p.price}/mo</span>`}</h3>`
+    + `<p class="mut">${esc(models)}.</p>`
+    + (p.owner
+      ? '<p class="mut">Coaching is not metered on this account.</p>'
+      : '<div class="meter-line"><div class="wm-track"><div class="wm-fill" style="width:'
+        + `${p.pct}%${p.pct >= 90 ? ';background:var(--flag)' : ''}"></div></div>`
+        + `<span>${p.pct}% of this month's coaching used · resets ${esc(p.resets)}</span></div>`)
+    + (claude.available ? '' : '<p class="mut">Coaching is not set up on this server yet.</p>')
+    + '</div>';
+}
+
 export default {
   path: '/settings',
   label: 'Settings',
@@ -148,20 +171,8 @@ export default {
             + '<span class="mut">Read-only</span></div>')
       + '</div>'
 
-      + '<div class="conn">'
-      + `<h3><span class="dot ${claude.available ? 'on' : 'off'}"></span>Claude</h3>`
-      + (claude.available
-        ? `<dl class="kv"><dt>model</dt><dd>${esc(claude.model)}</dd></dl>`
-        : '<p class="mut">Not connected.</p>')
-      + (claude.allowUserKeys
-        ? '<div class="field" style="margin-top:10px"><label for="claudeKey">'
-          + `API key${claude.hasUserKey ? ' · saved' : ''}</label>`
-          + `<input type="password" id="claudeKey" placeholder="${claude.hasUserKey ? 'Paste a new key to replace it' : 'sk-ant-…'}" autocomplete="off"></div>`
-          + '<div class="btnrow"><button id="saveKey">Save</button>'
-          + (claude.hasUserKey ? '<button id="clearKey">Remove</button>' : '')
-          + '<span class="thinking" id="keyStatus"></span></div>'
-        : '')
-      + '</div></div>'
+      + planCard(claude)
+      + '</div>'
 
       + '<div>'
       + '<h3 class="sub-h">How you train</h3>'
@@ -218,20 +229,6 @@ export default {
         await ctx.api('/auth/strava/disconnect', { method: 'POST' });
         await ctx.refresh();
         toast('Strava disconnected.');
-        return;
-      }
-      if (t.id === 'saveKey' || t.id === 'clearKey') {
-        const status = root.querySelector('#keyStatus');
-        status.textContent = 'Saving…';
-        try {
-          const key = t.id === 'clearKey' ? '' : root.querySelector('#claudeKey').value.trim();
-          await ctx.api('/api/claude-key', { method: 'PUT', body: { key } });
-          await ctx.refresh();
-          toast(t.id === 'clearKey' ? 'Key removed.' : 'Key saved.');
-        } catch (err) {
-          status.className = 'thinking err';
-          status.textContent = err.message;
-        }
         return;
       }
       if (t.id === 'saveProfile') {

@@ -166,10 +166,9 @@ export function coachBlock({
     + '</section>';
 }
 
-/** A button that needs Claude, shown when Claude is not connected. */
+/** A button that needs the coach, shown when coaching is not available. */
 export function needsClaude(label) {
-  return `<button disabled>${esc(label)}</button>`
-    + '<a class="link needs" href="/settings" data-link>Connect Claude</a>';
+  return `<button disabled title="Coaching is not available on this server yet">${esc(label)}</button>`;
 }
 
 /** One coach-written line, inline, wearing the same mark as the block. */

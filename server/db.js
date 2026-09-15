@@ -8,6 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { migrate, schemaVersion } from './migrations.js';
+import { costOf, monthStart } from './tiers.js';
 
 export const db = new DatabaseSync(config.dbPath);
 
@@ -46,12 +47,18 @@ export function findUserByGoogleSub(sub) {
 export function findUserById(id) {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
 }
-export function createUser({ googleSub = null, email = null, name = null, picture = null }) {
+export function createUser({ googleSub = null, email = null, name = null, picture = null, tier = 'basic' }) {
   const id = newId(12);
-  db.prepare(`INSERT INTO users (id, google_sub, email, name, picture, created_at, last_seen)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, googleSub, email, name, picture, nowIso(), nowIso());
+  db.prepare(`INSERT INTO users (id, google_sub, email, name, picture, tier, created_at, last_seen)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, googleSub, email, name, picture, tier, nowIso(), nowIso());
   return findUserById(id);
+}
+export function setTier(id, tier) {
+  db.prepare('UPDATE users SET tier = ? WHERE id = ?').run(tier, id);
+}
+export function countUsers() {
+  return db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 }
 export function touchUser(id, patch = {}) {
   db.prepare(`UPDATE users SET last_seen = ?, email = COALESCE(?, email),
@@ -127,20 +134,12 @@ export function deleteConnection(userId, provider) {
 
 // --- settings --------------------------------------------------------------
 export function getSettings(userId) {
-  const row = db.prepare('SELECT * FROM settings WHERE user_id = ?').get(userId);
-  if (!row) return null;
-  return { ...parse(row), _hasKey: Boolean(row.anthropic_key), _key: row.anthropic_key };
+  return parse(db.prepare('SELECT doc FROM settings WHERE user_id = ?').get(userId));
 }
 export function saveSettings(userId, doc) {
   db.prepare(`INSERT INTO settings (user_id, doc, updated_at) VALUES (?, ?, ?)
               ON CONFLICT(user_id) DO UPDATE SET doc = excluded.doc, updated_at = excluded.updated_at`)
     .run(userId, JSON.stringify(doc), nowIso());
-}
-export function saveUserKey(userId, encrypted) {
-  db.prepare(`INSERT INTO settings (user_id, doc, anthropic_key, updated_at) VALUES (?, ?, ?, ?)
-              ON CONFLICT(user_id) DO UPDATE SET anthropic_key = excluded.anthropic_key,
-              updated_at = excluded.updated_at`)
-    .run(userId, JSON.stringify({}), encrypted, nowIso());
 }
 
 // --- plan, weeks, digests, sync -------------------------------------------
@@ -285,10 +284,19 @@ export function setPrimaryGoal(userId, id) {
 
 // --- coach audit trail -----------------------------------------------------
 export function logCoachRun(userId, kind, { model, usage, ms, ok, error }) {
-  db.prepare(`INSERT INTO coach_runs (id, user_id, kind, model, usage, ms, ok, error, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  // Priced at write time, so a month's spend is a sum. A failed call that
+  // returned usage still cost money and is still counted.
+  db.prepare(`INSERT INTO coach_runs (id, user_id, kind, model, usage, ms, ok, error, cost, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(newId(8), userId, kind, model ?? null, usage ? JSON.stringify(usage) : null,
-      ms ?? null, ok ? 1 : 0, error ?? null, nowIso());
+      ms ?? null, ok ? 1 : 0, error ?? null, costOf(model, usage), nowIso());
+}
+
+/** What this account's coaching has cost since the first of the month. */
+export function monthlySpend(userId, now = new Date()) {
+  const row = db.prepare('SELECT COALESCE(SUM(cost), 0) AS spent FROM coach_runs WHERE user_id = ? AND created_at >= ?')
+    .get(userId, monthStart(now));
+  return Number(row?.spent) || 0;
 }
 
 export function exportAll(userId) {

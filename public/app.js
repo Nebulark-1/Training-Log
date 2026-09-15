@@ -427,7 +427,13 @@ export { api, refresh, go, state };
 function renderGate() {
   const a = state.auth || {};
   const actions = [];
-  if (a.google) actions.push('<a href="/auth/google/start"><button class="solid">Sign in with Google</button></a>');
+  if (a.google) {
+    // Both go through Google: an account is created on first sign-in. Two
+    // buttons because a new person and a returning one are looking for
+    // different words, not because the flows differ.
+    actions.push('<a href="/auth/google/start?intent=signup"><button class="solid">Create an account</button></a>');
+    actions.push('<a href="/auth/google/start?intent=signin"><button>Sign in</button></a>');
+  }
   if (a.devLogin) actions.push(`<button ${a.google ? '' : 'class="solid"'} id="devLogin">Use the local account</button>`);
   if (!actions.length) {
     actions.push('<span class="thinking err">Sign-in is not set up yet.</span>');
@@ -439,8 +445,12 @@ function renderGate() {
     denied: 'Sign-in was cancelled.',
     badstate: 'That sign-in link expired. Try again.',
     failed: 'Sign-in failed. Try again.',
+    unverified: 'That Google account has no verified email address.',
+    closed: 'Chaos Coaching is invitation-only for now. That address is not on the list yet.',
   }[params.get('auth')];
-  $('gateNote').innerHTML = authError ? `<span style="color:var(--flag)">${esc(authError)}</span>` : '';
+  $('gateNote').innerHTML = authError
+    ? `<span style="color:var(--flag)">${esc(authError)}</span>`
+    : (a.google ? 'A Google account is all you need.' : '');
 }
 
 function announceConnections() {
@@ -453,7 +463,8 @@ function announceConnections() {
     failed: ['Connecting Strava failed. Try again.', true],
   }[params.get('strava')];
   if (msg) toast(msg[0], msg[1]);
-  if (params.get('strava') || params.get('auth')) {
+  if (params.get('welcome')) toast('Welcome. Connect Strava in Settings to bring your history in.');
+  if (params.get('strava') || params.get('auth') || params.get('welcome')) {
     window.history.replaceState({}, '', currentPath());
   }
 }

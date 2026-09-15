@@ -2,19 +2,19 @@
 import express from 'express';
 import net from 'node:net';
 import path from 'node:path';
-import { config, encrypt } from './config.js';
+import { config } from './config.js';
 import { BACKUP_DIR, dailySnapshot, listBackups, snapshot } from './backup.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
 import { stravaRouter, syncUser } from './strava.js';
 import {
-  applyWeekEdit, assessGoal, buildMacrocycle, claudeStatus, confidencePrompt,
+  applyWeekEdit, assessGoal, buildMacrocycle, claudeStatus, coachingFor, confidencePrompt,
   DEFAULT_SETTINGS, planWeek, profileFor, reviewDigest, reviewProgram,
 } from './coach.js';
 import {
   activityCount, db, dbVersion, deleteActivity, deleteGoal, exportAll, getActivities,
   getActivity, getConnection, getDigests, getFeedback, getPlan, getSettings, getSyncState,
   getWeek, getWeeks, initDb, listGoals, newId, pruneExpired, saveActivity, saveFeedback,
-  saveGoal, saveSettings, saveUserKey, saveDigest, setPrimaryGoal,
+  saveGoal, saveSettings, saveDigest, setPrimaryGoal,
   latestAssessments, listAssessments,
 } from './db.js';
 import {
@@ -111,9 +111,8 @@ api.get('/data', (req, res) => {
         : { connected: false, configured: config.strava.enabled },
     },
     claude: {
-      ...claudeStatus(userId),
-      allowUserKeys: config.anthropic.allowUserKeys,
-      hasUserKey: Boolean(getSettings(userId)?._hasKey),
+      ...claudeStatus(),
+      plan: coachingFor(userId),
     },
   });
 });
@@ -138,8 +137,6 @@ api.get('/fitness', (req, res) => {
 api.put('/settings', (req, res) => {
   const b = req.body || {};
   const current = getSettings(req.user.id) || {};
-  delete current._key;
-  delete current._hasKey;
   saveSettings(req.user.id, {
     ...current,
     goal: String(b.goal ?? current.goal ?? '').slice(0, 2000),
@@ -184,14 +181,6 @@ api.delete('/goals/:id', (req, res) => {
 api.post('/goals/:id/primary', (req, res) => {
   setPrimaryGoal(req.user.id, req.params.id);
   res.json({ ok: true, goals: listGoals(req.user.id) });
-});
-
-api.put('/claude-key', (req, res) => {
-  if (!config.anthropic.allowUserKeys) return res.status(403).json({ error: 'user_keys_disabled' });
-  const key = String(req.body?.key || '').trim();
-  if (key && !/^sk-ant-/.test(key)) return res.status(400).json({ error: 'that does not look like an Anthropic API key' });
-  saveUserKey(req.user.id, key ? encrypt(key) : null);
-  res.json({ ok: true, hasUserKey: Boolean(key) });
 });
 
 // --- strength program ------------------------------------------------------
@@ -419,7 +408,7 @@ api.post('/strava/sync', async (req, res) => {
 // --- coach -----------------------------------------------------------------
 function coachError(res, err) {
   console.error('[coach]', err?.status || '', err?.message);
-  const status = err?.status === 401 ? 401 : err?.status === 429 ? 429 : 502;
+  const status = [401, 402, 429].includes(err?.status) ? err.status : 502;
   const code = err?.code || (err?.status === 401 ? 'no_credentials' : err?.status === 429 ? 'rate_limited' : 'coach_failed');
   res.status(status).json({ error: code, message: String(err?.message || 'Claude request failed').slice(0, 400) });
 }
@@ -457,7 +446,6 @@ api.post('/coach/program-review', async (req, res) => {
 
 api.get('/export', (req, res) => {
   const data = exportAll(req.user.id);
-  if (data.settings) delete data.settings._key;
   res.setHeader('Content-Disposition', `attachment; filename="chaos-coaching-${ymd(new Date())}.json"`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(data, null, 1));
@@ -580,8 +568,10 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`\n  Chaos Coaching  ${url}\n`);
   console.log(`  sign-in    ${config.google.enabled ? 'Google' : config.devLoginAllowed ? 'local (no Google credentials set)' : 'NOT CONFIGURED'}`);
   console.log(`  strava     ${config.strava.enabled ? 'configured' : 'not configured — add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to .env'}`);
-  const claude = claudeStatus('');
-  console.log(`  claude     ${claude.available ? `${claude.model} via ${claude.source}` : 'no credentials found (offline coaching: npm run coach)'}`);
+  const claude = claudeStatus();
+  console.log(`  claude     ${claude.available ? `paying via ${claude.source}; plans decide the model` : 'no credentials found (offline coaching: npm run coach)'}`);
+  console.log(`  accounts   ${config.accounts.ownerEmail ? `owner ${config.accounts.ownerEmail}` : 'no OWNER_EMAIL set'}`
+    + `${config.accounts.allowedEmails.length ? `, ${config.accounts.allowedEmails.length} allowed` : ', open'}`);
   console.log(`  database   ${config.dbPath}`);
   const moved = migration.applied.length
     ? `${migration.from} -> ${migration.to} (${migration.applied.map((m) => m.name).join(', ')})`

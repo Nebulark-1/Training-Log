@@ -98,15 +98,18 @@ export const config = {
   },
 
   anthropic: {
-    // Optional server-wide key. When unset the SDK still resolves an
-    // `ant auth login` profile, so a zero-arg client often just works.
+    // The server pays for every account's coaching; the plan decides the
+    // model. When unset the SDK still resolves an `ant auth login` profile.
     apiKey: process.env.ANTHROPIC_API_KEY || '',
-    model: process.env.CLAUDE_MODEL || 'claude-opus-5',
-    effort: process.env.CLAUDE_EFFORT || 'high',
     // Server-side refusal fallbacks, on by default for Opus 5.
     fallbacks: process.env.CLAUDE_FALLBACKS !== '0',
-    // Let each signed-in user supply their own key (bring-your-own-key).
-    allowUserKeys: process.env.ALLOW_USER_KEYS !== '0',
+  },
+
+  accounts: {
+    // The owner's account is Expert and never metered.
+    ownerEmail: (process.env.OWNER_EMAIL || '').trim().toLowerCase(),
+    // While closed: only these addresses may create an account. Empty means open.
+    allowedEmails: (process.env.ALLOWED_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   },
 
   // Local single-user login, for running without Google credentials. Refused

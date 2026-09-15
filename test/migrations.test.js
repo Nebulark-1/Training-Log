@@ -159,3 +159,22 @@ test('every migration has a name and an up function', () => {
     assert.equal(typeof m.up, 'function');
   }
 });
+
+test('version 3 gives every existing account a plan and prices every run', () => {
+  const file = path.join(tmp, 'v3.db');
+  const first = new DatabaseSync(file);
+  // Bring it to version 2 by hand, with an account and a run from before plans existed.
+  for (const m of MIGRATIONS.filter((x) => x.version <= 2)) m.up(first);
+  first.exec('PRAGMA user_version = 2');
+  first.exec("INSERT INTO users (id, created_at) VALUES ('u1', '2026-01-01')");
+  first.exec("INSERT INTO coach_runs (id, user_id, kind, ok, created_at) VALUES ('r1', 'u1', 'plan-week', 1, '2026-01-02')");
+  first.close();
+
+  const db = new DatabaseSync(file);
+  migrate(db, { backup: noBackup });
+  assert.equal(db.prepare("SELECT tier FROM users WHERE id = 'u1'").get().tier, 'basic',
+    'an account from before plans lands on the entry tier');
+  assert.equal(db.prepare("SELECT cost FROM coach_runs WHERE id = 'r1'").get().cost, 0,
+    'a run from before pricing costs nothing rather than failing to read');
+  db.close();
+});

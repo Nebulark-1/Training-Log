@@ -3,7 +3,7 @@ import express from 'express';
 import { config } from './config.js';
 import {
   createSession, createUser, destroySession, findUserByGoogleSub, findUserById,
-  saveOauthState, takeOauthState, touchUser, userForSession,
+  saveOauthState, setTier, takeOauthState, touchUser, userForSession,
 } from './db.js';
 
 const COOKIE = 'vl_session';
@@ -63,6 +63,21 @@ authRouter.get('/status', (req, res) => {
   });
 });
 
+/**
+ * Who may have an account, and which plan they land on.
+ *
+ * Google gives us a verified address. The owner is Expert and never metered;
+ * while the door is closed, an allowlist decides who else gets in at all.
+ */
+function admit(claims) {
+  const email = String(claims.email || '').toLowerCase();
+  if (!email || claims.email_verified === false) return { ok: false, why: 'unverified' };
+  const isOwner = config.accounts.ownerEmail && email === config.accounts.ownerEmail;
+  const allowed = config.accounts.allowedEmails;
+  if (!isOwner && allowed.length && !allowed.includes(email)) return { ok: false, why: 'closed' };
+  return { ok: true, email, tier: isOwner ? 'expert' : 'basic', isOwner };
+}
+
 authRouter.get('/google/start', (req, res) => {
   if (!config.google.enabled) return res.status(400).send('Google sign-in is not configured.');
   const state = saveOauthState('google');
@@ -100,18 +115,23 @@ authRouter.get('/google/callback', async (req, res) => {
     const claims = readIdToken((await resp.json()).id_token);
 
     let user = findUserByGoogleSub(claims.sub);
+    const entry = admit(claims);
+    if (!user && !entry.ok) return res.redirect(`/?auth=${entry.why}`);
+
     if (user) {
       touchUser(user.id, { email: claims.email, name: claims.name, picture: claims.picture });
+      // The owner is always Expert, even on an account made before that was true.
+      if (entry.ok && entry.isOwner && user.tier !== 'expert') setTier(user.id, 'expert');
       user = findUserById(user.id);
     } else {
       user = createUser({
-        googleSub: claims.sub, email: claims.email || null,
-        name: claims.name || null, picture: claims.picture || null,
+        googleSub: claims.sub, email: entry.email,
+        name: claims.name || null, picture: claims.picture || null, tier: entry.tier,
       });
     }
     const session = createSession(user.id);
     res.cookie(COOKIE, session.id, cookieOptions());
-    res.redirect('/');
+    res.redirect(user.created_at === user.last_seen ? '/?welcome=1' : '/');
   } catch (err) {
     console.error('[auth] google callback:', err.message);
     res.redirect('/?auth=failed');
@@ -123,7 +143,9 @@ authRouter.get('/google/callback', async (req, res) => {
 authRouter.post('/dev', (req, res) => {
   if (!config.devLoginAllowed) return res.status(403).json({ error: 'dev_login_disabled' });
   let user = findUserByGoogleSub('local:dev');
-  if (!user) user = createUser({ googleSub: 'local:dev', name: 'Local athlete', email: null });
+  // The local account stands in for the owner when there is no Google sign-in.
+  if (!user) user = createUser({ googleSub: 'local:dev', name: 'Local athlete', email: null, tier: 'expert' });
+  else if (user.tier !== 'expert') { setTier(user.id, 'expert'); user = findUserById(user.id); }
   const session = createSession(user.id);
   res.cookie(COOKIE, session.id, cookieOptions());
   res.json({ ok: true, user: { id: user.id, name: user.name } });

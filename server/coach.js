@@ -17,11 +17,12 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
-import { config, decrypt } from './config.js';
+import { config } from './config.js';
 import {
   getActivities, getDigests, getFeedback, getPlan, getSettings, getWeek, getWeeks,
   listGoals, logCoachRun, savePlan, saveWeek, saveDigest,
   listAssessments, saveAssessment,
+  findUserById, monthlySpend,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, movementIndex,
@@ -30,6 +31,7 @@ import {
 import { checkWeekPlan, hasBlocking, newViolations, plannedVolumes } from './guardrails.js';
 import { fitnessSnapshot } from './fitness.js';
 import { evidenceText, goalEvidence } from './evidence.js';
+import { DEFAULT_TIER, allowance, modelFor, tierOf } from './tiers.js';
 import { CATALOG, PATTERNS, movementId } from '../public/lib/movements.js';
 import {
   ENDURANCE_SPORTS, formatVolume, isStrength, sportInfo, sportKey,
@@ -214,17 +216,12 @@ export const GoalAssessmentSchema = z.object({
 
 // --- client ----------------------------------------------------------------
 /** Resolve a client for this user: their own key first, then the server's. */
-export function clientFor(userId) {
-  if (config.anthropic.allowUserKeys) {
-    const key = decrypt(getSettings(userId)?._key);
-    if (key) return { client: new Anthropic({ apiKey: key }), source: 'user-key' };
-  }
-  if (config.anthropic.apiKey) {
-    return { client: new Anthropic({ apiKey: config.anthropic.apiKey }), source: 'server-key' };
-  }
+/** One client for every account: the server pays, the plan decides the model. */
+export function clientFor() {
+  if (config.anthropic.apiKey) return new Anthropic({ apiKey: config.anthropic.apiKey });
   // No explicit key: the SDK still resolves ANTHROPIC_AUTH_TOKEN or an
   // `ant auth login` profile from disk.
-  return { client: new Anthropic(), source: 'ambient' };
+  return new Anthropic();
 }
 
 /**
@@ -246,31 +243,58 @@ function ambientCredentials() {
   return null;
 }
 
-export function claudeStatus(userId) {
-  const model = config.anthropic.model;
-  if (config.anthropic.allowUserKeys && userId && decrypt(getSettings(userId)?._key)) {
-    return { available: true, source: 'user-key', model };
-  }
-  if (config.anthropic.apiKey) return { available: true, source: 'server-key', model };
+/** Is coaching possible at all on this server. */
+export function claudeStatus() {
+  if (config.anthropic.apiKey) return { available: true, source: 'server-key' };
   const ambient = ambientCredentials();
-  if (ambient) return { available: true, source: ambient, model };
-  return { available: false, source: null, model };
+  if (ambient) return { available: true, source: ambient };
+  return { available: false, source: null };
+}
+
+/**
+ * The account's plan, and where it stands this month. The owner is never
+ * metered; everyone else has a budget the plan sets.
+ */
+export function coachingFor(userId) {
+  const user = findUserById(userId);
+  const owner = Boolean(user && (
+    user.google_sub === 'local:dev'
+    || (config.accounts.ownerEmail && String(user.email || '').toLowerCase() === config.accounts.ownerEmail)
+  ));
+  // The owner is Expert whatever the row says; the row is corrected at sign-in.
+  const tierId = owner ? 'expert' : (user?.tier || DEFAULT_TIER);
+  const tier = tierOf(tierId);
+  return {
+    ...allowance(tierId, monthlySpend(userId), { unlimited: owner }),
+    owner,
+    price: tier.price,
+    blurb: tier.blurb,
+    models: { routine: tier.routine.model, key: tier.key.model },
+  };
 }
 
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 async function ask(userId, kind, schema, userText) {
   const started = Date.now();
-  if (!claudeStatus(userId).available) {
+  if (!claudeStatus().available) {
     throw Object.assign(
-      new Error('No Claude credentials. Add an API key in Setup, set ANTHROPIC_API_KEY, or run `ant auth login`.'),
+      new Error('Coaching is not set up on this server yet.'),
       { code: 'no_credentials', status: 401 },
     );
   }
-  const { client } = clientFor(userId);
+  const plan = coachingFor(userId);
+  if (plan.exhausted) {
+    throw Object.assign(
+      new Error(`Your plan's coaching for this month is used up. It resets on ${plan.resets}.`),
+      { code: 'allowance', status: 402 },
+    );
+  }
+  const client = clientFor();
+  const slot = modelFor(plan.tier, kind);
 
   const request = (effort) => ({
-    model: config.anthropic.model,
+    model: slot.model,
     // The most the SDK allows without streaming; above ~21k it refuses to
     // send at all. Plenty for the thinking and the answer both.
     max_tokens: 20000,
@@ -328,14 +352,14 @@ async function ask(userId, kind, schema, userText) {
 
   const shape = (m) => `${m.stop_reason}; blocks: ${(m.content || []).map((b) => b.type).join(',') || 'none'}`;
 
-  let message = await attempt(config.anthropic.effort);
+  let message = await attempt(slot.effort);
   let parsed = parseAnswer(message);
 
   if (!parsed.ok && message.stop_reason === 'max_tokens') {
     // The whole budget went on thinking and no answer was written. Ask again
     // with less deliberation rather than hand the athlete an error.
     console.warn(`[coach] ${kind}: out of tokens before answering (${shape(message)}); retrying at lower effort`);
-    message = await attempt('medium');
+    message = await attempt(slot.effort === 'high' ? 'medium' : 'low');
     parsed = parseAnswer(message);
   }
 
@@ -373,8 +397,6 @@ const FEEL = { 1: 'rough', 2: 'flat', 3: 'fine', 4: 'good', 5: 'great' };
 /** Settings with the goal list folded in. */
 export function profileFor(userId) {
   const settings = { ...DEFAULT_SETTINGS, ...(getSettings(userId) || {}) };
-  delete settings._key;
-  delete settings._hasKey;
   return { settings, goals: listGoals(userId) };
 }
 
