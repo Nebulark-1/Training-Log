@@ -271,9 +271,9 @@ async function ask(userId, kind, schema, userText) {
 
   const request = (effort) => ({
     model: config.anthropic.model,
-    // Room for the thinking and the answer both. A structured reply that runs
-    // out of tokens mid-thought comes back with no text block at all.
-    max_tokens: 32000,
+    // The most the SDK allows without streaming; above ~21k it refuses to
+    // send at all. Plenty for the thinking and the answer both.
+    max_tokens: 20000,
     thinking: { type: 'adaptive' },
     system: [{ type: 'text', text: RULES, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: userText }],
@@ -302,40 +302,66 @@ async function ask(userId, kind, schema, userText) {
     }
   };
 
-  let message = await attempt(config.anthropic.effort);
+  /*
+   * Parse the answer ourselves.
+   *
+   * The schema goes to the API under `output_config.format`, which the API
+   * honours — the reply comes back shaped by it. But this SDK's client-side
+   * parser only looks for a schema at the top-level `output_format`, so it
+   * never runs, and `message.parsed_output` is always null on this path. For
+   * a while that read as "Claude's answer did not match the expected shape"
+   * on every single call, when the answer was fine and simply never parsed.
+   */
+  const parseAnswer = (message) => {
+    const text = (message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    if (!text.trim()) return { ok: false, why: 'no text' };
+    let json;
+    try { json = JSON.parse(text); } catch (err) { return { ok: false, why: `not JSON: ${err.message}` }; }
+    const result = schema.safeParse(json);
+    if (!result.success) {
+      const issues = result.error.issues.slice(0, 6)
+        .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+      return { ok: false, why: `schema: ${issues}` };
+    }
+    return { ok: true, data: result.data };
+  };
 
-  // What came back, for the log: block types and where it stopped. Without
-  // this an empty reply is indistinguishable from a wrong one.
   const shape = (m) => `${m.stop_reason}; blocks: ${(m.content || []).map((b) => b.type).join(',') || 'none'}`;
 
-  if (message.stop_reason === 'max_tokens' && !message.parsed_output) {
+  let message = await attempt(config.anthropic.effort);
+  let parsed = parseAnswer(message);
+
+  if (!parsed.ok && message.stop_reason === 'max_tokens') {
     // The whole budget went on thinking and no answer was written. Ask again
     // with less deliberation rather than hand the athlete an error.
     console.warn(`[coach] ${kind}: out of tokens before answering (${shape(message)}); retrying at lower effort`);
     message = await attempt('medium');
+    parsed = parseAnswer(message);
   }
 
   if (message.stop_reason === 'refusal') {
     logCoachRun(userId, kind, { model: message.model, usage: message.usage, ms: Date.now() - started, ok: false, error: 'refusal' });
     throw Object.assign(new Error('Claude declined this request. Try rewording it.'), { code: 'refused' });
   }
-  if (!message.parsed_output) {
+  if (!parsed.ok) {
     logCoachRun(userId, kind, {
       model: message.model, usage: message.usage, ms: Date.now() - started, ok: false,
-      error: `no answer: ${shape(message)}`.slice(0, 400),
+      error: `${parsed.why} (${shape(message)})`.slice(0, 400),
     });
     throw Object.assign(
       new Error(message.stop_reason === 'max_tokens'
         ? 'Claude ran out of room before finishing. Try again.'
-        : 'Claude came back without an answer. Try again.'),
-      { code: 'no_answer' },
+        : parsed.why.startsWith('schema')
+          ? "Claude's answer was missing something. Try again."
+          : 'Claude came back without an answer. Try again.'),
+      { code: 'no_answer', detail: parsed.why },
     );
   }
 
   logCoachRun(userId, kind, {
     model: message.model, usage: message.usage, ms: Date.now() - started, ok: true,
   });
-  return message.parsed_output;
+  return parsed.data;
 }
 
 // --- context ---------------------------------------------------------------
