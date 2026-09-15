@@ -17,7 +17,7 @@
 // the same normalizer the API path uses.
 import fs from 'node:fs';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { db, initDb } from './db.js';
+import { db, initDb, setTier } from './db.js';
 import {
   RULES, GoalAssessmentSchema, MacrocycleSchema, ProgramReviewSchema, ReviewSchema,
   WeekPlanSchema, applyGoalAssessment, applyMacrocycle, applyProgramReview, applyReview,
@@ -117,6 +117,27 @@ const userId = ['context', 'prompt', 'schema', 'apply'].includes(command) ? reso
 const positional = args.filter((a) => !a.startsWith('--'));
 
 switch (command) {
+  case 'users': {
+    const rows = db.prepare('SELECT id, name, email, tier, created_at, last_seen FROM users ORDER BY created_at').all();
+    for (const r of rows) {
+      process.stdout.write(`  ${(r.tier || 'basic').padEnd(7)} ${(r.email || '(local)').padEnd(32)} ${r.name || ''}`
+        + `  joined ${String(r.created_at).slice(0, 10)}, seen ${String(r.last_seen || '').slice(0, 10)}\n`);
+    }
+    if (!rows.length) process.stdout.write('  no accounts yet\n');
+    break;
+  }
+
+  case 'tier': {
+    // npm run coach -- tier someone@gmail.com plus
+    const [email, tier] = positional;
+    if (!email || !['basic', 'plus', 'expert'].includes(tier)) die('Usage: tier <email> <basic|plus|expert>');
+    const row = db.prepare('SELECT id, name FROM users WHERE lower(email) = lower(?)').get(email);
+    if (!row) die(`No account with the address ${email}.`);
+    setTier(row.id, tier);
+    process.stdout.write(`\n  ${row.name || email} is now on ${tier}.\n\n`);
+    break;
+  }
+
   case 'context': {
     const weeks = Number(args.find((a) => a.startsWith('--weeks='))?.slice(8)) || 12;
     const sessions = Number(args.find((a) => a.startsWith('--sessions='))?.slice(11)) || 24;
@@ -227,6 +248,8 @@ switch (command) {
     process.stdout.write(`
   Offline coach — same loop, no API key.
 
+    npm run coach -- users
+    npm run coach -- tier <email> <basic|plus|expert>
     npm run coach -- context [--weeks=12] [--sessions=24]
     npm run coach -- prompt plan-week [2026-W38]
     npm run coach -- prompt review "<digest text>" | @digest.txt

@@ -327,6 +327,29 @@ function dayPane(ctx, date) {
     + '</section>';
 }
 
+/**
+ * The three things a new account has to do before there is anything to
+ * train from. Each line ticks off as it is done, and the whole card goes
+ * away once all three are.
+ */
+function gettingStarted(ctx) {
+  const strava = Boolean(ctx.data.connections?.strava?.connected);
+  const goal = Boolean((ctx.data.goals || []).length);
+  const plan = Boolean(ctx.data.plan);
+  if (strava && goal && plan) return '';
+  const step = (done, n, text, href) => `<li class="${done ? 'done' : ''}">`
+    + `<b>${done ? '\u2713' : n}</b>`
+    + (done || !href ? `<span>${text}</span>` : `<a href="${href}" data-link>${text}</a>`)
+    + '</li>';
+  return '<section class="start">'
+    + '<h2>Getting started</h2>'
+    + '<ol>'
+    + step(strava, 1, 'Connect Strava, so the coach can read your history', '/settings')
+    + step(goal, 2, 'Set the goal you are training toward', '/settings')
+    + step(plan, 3, 'Build the season plan from where you actually are', goal ? '/plan' : null)
+    + '</ol></section>';
+}
+
 // --- the page --------------------------------------------------------------
 
 export default {
@@ -365,6 +388,7 @@ export default {
         + (isThis ? '' : '<button data-week="0" class="today-reset">This week</button>')
         + '</div>',
     })
+      + gettingStarted(ctx)
       + scoreStrip(ctx)
       + coachStrip(wk)
       + (tiles ? `<div class="voltiles">${tiles}</div>` : '')

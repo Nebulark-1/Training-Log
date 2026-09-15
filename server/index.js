@@ -413,7 +413,15 @@ function coachError(res, err) {
   res.status(status).json({ error: code, message: String(err?.message || 'Claude request failed').slice(0, 400) });
 }
 
+/** Planning anything needs a goal to plan toward. */
+function needsGoal(req, res) {
+  if (listGoals(req.user.id).length) return false;
+  res.status(400).json({ error: 'no_goal', message: 'Set a goal in Settings first.' });
+  return true;
+}
+
 api.post('/coach/plan-week', async (req, res) => {
+  if (needsGoal(req, res)) return;
   const week = String(req.body?.week || thisWeek());
   if (!/^\d{4}-W\d{2}$/.test(week)) return res.status(400).json({ error: 'bad_week' });
   try {
@@ -424,6 +432,7 @@ api.post('/coach/plan-week', async (req, res) => {
 });
 
 api.post('/coach/review-digest', async (req, res) => {
+  if (needsGoal(req, res)) return;
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ error: 'empty_digest' });
   try {
@@ -432,6 +441,7 @@ api.post('/coach/review-digest', async (req, res) => {
 });
 
 api.post('/coach/build-plan', async (req, res) => {
+  if (needsGoal(req, res)) return;
   try {
     res.json({ ok: true, plan: await buildMacrocycle(req.user.id) });
   } catch (err) { coachError(res, err); }

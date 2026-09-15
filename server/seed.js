@@ -1,125 +1,24 @@
-// First-run seeding: gives a new account a starting goal, strength program,
-// macrocycle and week, so the app opens with something real in it.
+// First-run seeding: a new account gets a strength program and the default
+// settings, and nothing else.
 //
-// The templates in seed/ carry fixed week keys and dates; they are re-based
-// onto whatever week the account is created in, so the seed stays usable. Lift
-// sessions are resolved from the strength program rather than the template, so
-// there is only ever one source of truth for what the movements are.
-import fs from 'node:fs';
-import path from 'node:path';
-import { config } from './config.js';
-import {
-  getPlan, getSettings, getWeek, listGoals, saveGoal, savePlan, saveSettings, saveWeek,
-} from './db.js';
+// It used to get a goal, a season plan and a planned week too — all lifted
+// from the one athlete this was built for. That read fine when there was one
+// athlete. A second one would have opened the app to a coach's note about a
+// layoff they never had and a plan toward a target they never set. The goal
+// is theirs to state, and the plan is built from their own history once
+// Strava is connected; the training page walks them through the three steps.
+import { getSettings, saveSettings } from './db.js';
 import { DEFAULT_SETTINGS } from './coach.js';
-import { ensureProgram, liftHistory, prescribeSession } from './program.js';
-import { isStrength } from '../public/lib/sports.js';
-import { DOW, thisWeek, weekAdd, weekDates } from '../public/lib/dates.js';
-
-function readSeed(name) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(config.seedDir, name), 'utf8'));
-  } catch {
-    return null;
-  }
-}
+import { ensureProgram } from './program.js';
 
 /** Seed anything this user is missing. Safe to call on every request. */
 export function seedUser(userId) {
-  const week = thisWeek();
-
   if (!getSettings(userId)) {
-    const profile = readSeed('profile.json');
-    const { source, updatedAt, ...rest } = profile || {};
     saveSettings(userId, {
       ...DEFAULT_SETTINGS,
-      ...rest,
       source: 'seed',
       updatedAt: new Date().toISOString(),
     });
   }
-
-  // A structured primary goal, so the confidence number has something to aim at.
-  if (!listGoals(userId).length) {
-    const settings = { ...DEFAULT_SETTINGS, ...(getSettings(userId) || {}) };
-    saveGoal(userId, {
-      id: 'primary',
-      sport: 'run',
-      metric: 'weeklyDistance',
-      target: Number(settings.targetMpw) || 75,
-      unit: 'mi',
-      byDate: settings.targetDate || '',
-      primary: true,
-      label: `${Number(settings.targetMpw) || 75} run miles a week, sustained`,
-      note: '',
-      source: 'seed',
-    });
-  }
-
-  const program = ensureProgram(userId);
-
-  if (!getPlan(userId)) {
-    const plan = readSeed('plan.json');
-    if (plan?.weekTargets?.length) {
-      savePlan(userId, {
-        ...plan,
-        weekTargets: plan.weekTargets.map((t, i) => ({ ...t, week: weekAdd(week, i) })),
-        source: 'seed',
-        generatedAt: new Date().toISOString(),
-      });
-    }
-  }
-
-  const existing = getWeek(userId, week);
-  // Refresh a still-seeded week when the template has gained something it
-  // lacks. Only ever touches a week the coach has not written.
-  const staleSeed = existing?.source === 'seed' && !hasResolvedStrength(existing);
-
-  if (!existing || staleSeed) {
-    const template = readSeed('week-2026-W37.json');
-    if (template?.days?.length === 7) {
-      const dates = weekDates(week);
-      const history = liftHistory(userId);
-      saveWeek(userId, week, {
-        ...template,
-        week,
-        days: template.days.map((d, i) => ({
-          ...d,
-          dow: DOW[i],
-          date: dates[i],
-          sessions: (d.sessions || []).map((s) => {
-            if (!isStrength(s.sport)) return s;
-            const resolved = prescribeSession(program, s.programSession || 'A', history);
-            return resolved
-              ? { ...s, programSession: resolved.programSession, exercises: resolved.exercises }
-              : s;
-          }),
-        })),
-        source: 'seed',
-        generatedAt: new Date().toISOString(),
-      });
-    }
-  }
-}
-
-/**
- * Is a seeded week in the current format?
- *
- * Checking only "does it have exercises" was not enough: a week seeded by an
- * earlier version had exercises, but no per-sport `volumes`, no
- * `programSession`, and no `exId` on the movements — so logged lifts keyed
- * under different ids than the program, the program read as never logged, and
- * progression had no history to work from.
- */
-function hasResolvedStrength(weekDoc) {
-  if (!weekDoc.volumes) return false;
-  const strength = (weekDoc.days || [])
-    .flatMap((d) => d.sessions || [])
-    .filter((s) => isStrength(s.sport));
-  if (!strength.length) return false;
-  return strength.every((s) => (
-    s.programSession
-    && s.exercises?.length
-    && s.exercises.every((e) => e.exId)
-  ));
+  ensureProgram(userId);
 }

@@ -40,13 +40,18 @@ import {
   DOW, mondayOf, thisWeek, todayYmd, weekAdd, weekDates, ymd,
 } from '../public/lib/dates.js';
 
+/**
+ * What a new account starts with: nothing about anyone in particular. The
+ * one line kept is the injury rule, because it is true of every athlete and
+ * the coach is required to hold to it.
+ */
 export const DEFAULT_SETTINGS = {
-  goal: 'Build running volume to 75 miles a week and hold it, while keeping some bike and swim volume every week.',
-  targetMpw: 75,
+  goal: '',
+  targetMpw: null,
   targetDate: '',
-  keep: '2 bike sessions, 1-2 swims, 2-3 strength sessions',
-  limits: 'Monday stays off running. Stop and hold volume if pain changes how you move, rises during a session, swells the next morning, hurts at rest, or passes 3/10.',
-  restDays: ['Mon'],
+  keep: '',
+  limits: 'Stop and hold volume if pain changes how you move, rises during a session, swells the next morning, hurts at rest, or passes 3/10.',
+  restDays: [],
 };
 
 export const RULES = [
@@ -911,7 +916,8 @@ export function macroPrompt(userId) {
   const { settings, goals } = profileFor(userId);
   const week = thisWeek();
   const primary = goals.find((g) => g.primary) || goals[0];
-  const target = primary ? describeGoal(primary) : `${settings.targetMpw || 75} run mi/wk`;
+  if (!primary) throw Object.assign(new Error('Set a goal in Settings first.'), { status: 400, code: 'no_goal' });
+  const target = describeGoal(primary);
   const task = [
     buildContext(userId, { weeks: 16, sessions: 20 }),
     '',
