@@ -1,21 +1,33 @@
-// Volume Ledger — app shell and router.
+// Chaos Coaching — app shell and router.
 //
 // Real URLs, one module per page. The server serves index.html for every path,
 // so /strength and /progress are bookmarkable and the back button works.
 import { $, closeSheet, esc, initSheet, sheetOpen, toast } from './lib/ui.js';
-import todayPage, { nudgeDay } from './pages/today.js';
-import weekPage from './pages/week.js';
+import trainingPage, { nudgeDay } from './pages/training.js';
+import planPage from './pages/plan.js';
+import logPage from './pages/log.js';
 import strengthPage from './pages/strength.js';
 import progressPage from './pages/progress.js';
 import injuriesPage from './pages/injuries.js';
-import planPage from './pages/plan.js';
-import coachPage from './pages/coach.js';
-import logPage from './pages/log.js';
 import settingsPage from './pages/settings.js';
 
-const PAGES = [todayPage, weekPage, strengthPage, progressPage, injuriesPage, planPage,
-  coachPage, logPage, settingsPage];
+export const BRAND = 'Chaos Coaching';
+
+/**
+ * The top bar, in order. A group is a menu: one label, several pages beneath
+ * it, lit when any of them is open.
+ */
+const NAV = [
+  trainingPage,
+  planPage,
+  logPage,
+  { label: 'Analysis', pages: [strengthPage, progressPage, injuriesPage] },
+];
+const PAGES = [trainingPage, planPage, logPage, strengthPage, progressPage, injuriesPage, settingsPage];
 const BY_PATH = new Map(PAGES.map((p) => [p.path, p]));
+
+/** Old addresses still land somewhere. */
+const ALIASES = { '/': '/training', '/today': '/training', '/week': '/training', '/coach': '/plan' };
 
 const state = {
   auth: null,
@@ -70,7 +82,7 @@ async function loadFitness() {
 // --- routing ---------------------------------------------------------------
 function currentPath() {
   const p = window.location.pathname.replace(/\/+$/, '') || '/';
-  return p === '/' ? '/today' : p;
+  return ALIASES[p] || p;
 }
 
 function go(path, { replace = false } = {}) {
@@ -121,18 +133,38 @@ function render() {
   });
 }
 
+const shortDay = (ymd) => {
+  const d = new Date(`${ymd}T12:00:00`);
+  return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getDate()}`;
+};
+
 function renderChrome() {
   const path = currentPath();
-  $('nav').innerHTML = PAGES
-    .filter((p) => !p.hidden)
-    .map((p) => `<a href="${p.path}" data-link${p.path === path ? ' class="on" aria-current="page"' : ''}>${esc(p.label)}</a>`)
-    .join('');
+  const link = (p, extra = '') => `<a href="${p.path}" data-link${p.path === path ? ' class="on" aria-current="page"' : ''}${extra}>${esc(p.label)}</a>`;
+  $('nav').innerHTML = NAV.map((item) => {
+    if (!item.pages) return link(item);
+    const open = item.pages.some((p) => p.path === path);
+    const current = item.pages.find((p) => p.path === path);
+    return `<div class="menu${open ? ' on' : ''}" data-menu>`
+      + `<button type="button" class="menu-btn" aria-haspopup="true" aria-expanded="false">`
+      + `${esc(item.label)}${current ? `<s>${esc(current.label)}</s>` : ''}<i></i></button>`
+      + `<div class="menu-list" hidden>${item.pages.map((p) => link(p)).join('')}</div>`
+      + '</div>';
+  }).join('');
 
   const d = state.data;
   const user = d?.user;
+  const name = user?.name || user?.email || 'Athlete';
   $('who').innerHTML = user
-    ? (user.picture ? `<img src="${esc(user.picture)}" alt="">` : '')
-      + `<span>${esc(user.name || user.email || 'Signed in')}</span>`
+    ? '<div class="menu" data-menu>'
+      + '<button type="button" class="menu-btn who-btn" aria-haspopup="true" aria-expanded="false">'
+      + (user.picture ? `<img src="${esc(user.picture)}" alt="">` : `<b>${esc(name.trim().charAt(0).toUpperCase() || 'A')}</b>`)
+      + `<span>${esc(name)}</span><i></i></button>`
+      + '<div class="menu-list right" hidden>'
+      + `<a href="/settings" data-link${path === '/settings' ? ' class="on"' : ''}>Settings</a>`
+      + '<a href="/api/export">Export</a>'
+      + '<button type="button" class="menu-item" id="signOutTop">Sign out</button>'
+      + '</div></div>'
     : '';
 
   const sync = d?.sync;
@@ -141,17 +173,23 @@ function renderChrome() {
   if (!d) {
     bar.innerHTML = '';
   } else if (!connected) {
-    bar.className = 'syncbar stale';
-    bar.innerHTML = '<a href="/settings" data-link>Connect Strava</a>';
+    bar.innerHTML = '<a class="sync stale" href="/settings" data-link><b>Connect Strava</b></a>';
   } else if (sync?.newest) {
     const age = Math.round((Date.now() - Date.parse(`${sync.newest}T12:00:00`)) / 86400000);
-    bar.className = `syncbar${age > 3 ? ' stale' : ''}`;
-    bar.innerHTML = `<button id="syncTop" class="link">Sync</button>`
-      + `<span>newest ${esc(sync.newest)}</span>`;
+    bar.innerHTML = `<button type="button" id="syncTop" class="sync${age > 3 ? ' stale' : ''}" title="Sync Strava">`
+      + `<b>Sync</b><span>${esc(shortDay(sync.newest))}</span></button>`;
   } else {
-    bar.className = 'syncbar stale';
-    bar.innerHTML = '<button id="syncTop" class="link">Run first sync</button>';
+    bar.innerHTML = '<button type="button" id="syncTop" class="sync stale"><b>Sync</b><span>first time</span></button>';
   }
+}
+
+/** Menus close on any click outside them, on Escape, and on navigation. */
+function closeMenus(except = null) {
+  document.querySelectorAll('[data-menu]').forEach((m) => {
+    if (m === except) return;
+    m.querySelector('.menu-list').hidden = true;
+    m.querySelector('.menu-btn').setAttribute('aria-expanded', 'false');
+  });
 }
 
 function renderPage() {
@@ -168,17 +206,17 @@ function renderPage() {
   previous.replaceWith(view);
 
   if (!page) {
-    document.title = 'Not found — Volume Ledger';
+    document.title = `Not found — ${BRAND}`;
     view.innerHTML = '<div class="emptystate"><p>No such page. '
-      + '<a href="/today" data-link>Back to today</a></p></div>';
+      + '<a href="/training" data-link>Back to training</a></p></div>';
     return;
   }
   if (!state.data) {
-    view.innerHTML = '<div class="emptystate"><p>Loading your ledger…</p></div>';
+    view.innerHTML = '<div class="emptystate"><p>Loading…</p></div>';
     return;
   }
 
-  document.title = `${page.label} — Volume Ledger`;
+  document.title = `${page.label} — ${BRAND}`;
   state.page = page;
   view.innerHTML = page.render(ctx);
   page.mount?.(ctx, view);
@@ -189,15 +227,33 @@ document.addEventListener('click', async (e) => {
   const t = e.target;
   if (!t || typeof t.closest !== 'function') return;
 
+  const menuBtn = t.closest('.menu-btn');
+  if (menuBtn) {
+    const menu = menuBtn.closest('[data-menu]');
+    const list = menu.querySelector('.menu-list');
+    const opening = list.hidden;
+    closeMenus(menu);
+    list.hidden = !opening;
+    menuBtn.setAttribute('aria-expanded', String(opening));
+    return;
+  }
+  if (!t.closest('[data-menu]')) closeMenus();
+
   const link = t.closest('a[data-link]');
   if (link && !e.metaKey && !e.ctrlKey && !e.shiftKey && link.target !== '_blank') {
     e.preventDefault();
+    closeMenus();
     go(link.getAttribute('href'));
     return;
   }
   if (t.closest('[data-close]')) { closeSheet(); return; }
 
-  if (t.id === 'syncTop') { runSync(false); return; }
+  if (t.closest('#syncTop')) { runSync(false); return; }
+  if (t.id === 'signOutTop') {
+    try { await api('/auth/logout', { method: 'POST' }); } catch { /* signing out anyway */ }
+    window.location.reload();
+    return;
+  }
   if (t.id === 'devLogin') {
     try {
       await api('/auth/dev', { method: 'POST' });
@@ -212,7 +268,8 @@ window.addEventListener('popstate', render);
 // sheet is open, or with modifiers held, so they never fight a field or the
 // browser's own shortcuts.
 document.addEventListener('keydown', (e) => {
-  if (currentPath() !== '/today') return;
+  if (e.key === 'Escape') { closeMenus(); return; }
+  if (currentPath() !== '/training') return;
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
   if (!state.data || sheetOpen()) return;
@@ -332,7 +389,7 @@ function announceConnections() {
   try {
     state.auth = await api('/auth/status');
   } catch {
-    document.body.innerHTML = '<div class="shell"><div class="gate"><h1>Volume Ledger</h1>'
+    document.body.innerHTML = `<div class="shell"><div class="gate"><h1>${BRAND}</h1>`
       + '<p>Can\'t connect right now. Try again in a moment.</p></div></div>';
     return;
   }

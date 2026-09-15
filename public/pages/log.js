@@ -1,7 +1,7 @@
 // Log — everything, newest first.
 import { openLiftLog } from '../components/liftlog.js';
 import { openFeedback, openManual } from '../components/sessionlog.js';
-import { prescriptionFor } from './today.js';
+import { prescriptionFor } from './training.js';
 import { SPORTS, isStrength, sportKey } from '../lib/sports.js';
 import { comma, esc, FEEL, hm, mmss, n0, n1, pageHead, shortDate } from '../lib/ui.js';
 

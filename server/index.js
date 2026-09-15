@@ -1,4 +1,4 @@
-// Volume Ledger — local web server.
+// Chaos Coaching — local web server.
 import express from 'express';
 import net from 'node:net';
 import path from 'node:path';
@@ -458,7 +458,7 @@ api.post('/coach/program-review', async (req, res) => {
 api.get('/export', (req, res) => {
   const data = exportAll(req.user.id);
   if (data.settings) delete data.settings._key;
-  res.setHeader('Content-Disposition', `attachment; filename="volume-ledger-${ymd(new Date())}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="chaos-coaching-${ymd(new Date())}.json"`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(data, null, 1));
 });
@@ -561,7 +561,7 @@ function portBusy(host, port) {
 
 function reportPortConflict() {
   console.error(`\n  Port ${config.port} is already in use.\n`);
-  console.error('  Another Volume Ledger is still running, and the page in your browser is');
+  console.error('  Another Chaos Coaching server is still running, and the page in your browser is');
   console.error('  being served by THAT process — so .env changes and code edits will not');
   console.error('  show up until you stop it.\n');
   console.error('  Stop it, then start again:\n');
@@ -577,7 +577,7 @@ if (await portBusy(config.host, config.port)) {
 
 const server = app.listen(config.port, config.host, () => {
   const url = `http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`;
-  console.log(`\n  Volume Ledger  ${url}\n`);
+  console.log(`\n  Chaos Coaching  ${url}\n`);
   console.log(`  sign-in    ${config.google.enabled ? 'Google' : config.devLoginAllowed ? 'local (no Google credentials set)' : 'NOT CONFIGURED'}`);
   console.log(`  strava     ${config.strava.enabled ? 'configured' : 'not configured — add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET to .env'}`);
   const claude = claudeStatus('');

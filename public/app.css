@@ -399,8 +399,7 @@ input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; colo
   font-family:'Barlow Condensed',sans-serif; font-size:23px; font-weight:600;
   line-height:1; letter-spacing:.005em;
 }
-.topbar nav{display:flex; align-items:stretch; gap:0; flex:1; overflow-x:auto; scrollbar-width:none}
-.topbar nav::-webkit-scrollbar{display:none}
+.topbar nav{display:flex; align-items:stretch; gap:0; flex:1; flex-wrap:wrap}
 .topbar nav a{
   display:flex; align-items:center; padding:0 15px;
   font-family:'Barlow Condensed',sans-serif; font-size:14.5px; text-transform:uppercase;
@@ -697,7 +696,7 @@ section.digest label{
 @media (max-width:900px){
   .topbar-in{flex-wrap:wrap; gap:0 18px; padding:0 16px}
   .topbar nav{order:3; width:100%; border-top:1px solid var(--line2)}
-  .topbar nav a{padding:9px 12px}
+  .topbar nav a,.topbar .menu-btn{padding:9px 12px}
   .topbar-right{margin-left:auto}
   .view{padding:26px 16px 70px}
   .foot-in{padding:18px 16px 32px}
@@ -927,3 +926,89 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 }
 .coach-line{display:inline-flex; align-items:baseline; gap:9px}
 .coach-line i{width:7px; height:7px; border-radius:50%; background:var(--run); flex:none; transform:translateY(-1px)}
+
+/* ==========================================================================
+   Chaos Coaching chrome: wordmark, menus, sync, profile
+   ========================================================================== */
+.wm-name em{font-style:normal; font-weight:400; color:var(--mut); margin-left:6px}
+
+/* A menu in the bar: one label, a list beneath, lit when a child page is open. */
+.menu{position:relative; display:flex; align-items:stretch}
+.menu-btn{
+  display:flex; align-items:center; gap:7px; padding:0 15px; background:none; border:0;
+  border-bottom:2px solid transparent; font-family:'Barlow Condensed',sans-serif;
+  font-size:14.5px; text-transform:uppercase; letter-spacing:.11em; color:var(--mut);
+  cursor:pointer; white-space:nowrap;
+}
+.menu-btn:hover{color:var(--ink); border-color:transparent}
+.menu.on>.menu-btn{color:var(--ink); border-bottom-color:var(--run)}
+.menu-btn s{text-decoration:none; color:var(--run); letter-spacing:.08em}
+.menu-btn s::before{content:"·"; margin-right:7px; color:var(--faint)}
+.menu-btn i{
+  width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+  transform:translateY(-2px) rotate(45deg); opacity:.7;
+}
+.menu-btn[aria-expanded="true"] i{transform:translateY(1px) rotate(225deg)}
+.menu-list{
+  position:absolute; top:100%; left:0; min-width:180px; z-index:50;
+  background:var(--raise); border:1px solid var(--line); box-shadow:0 8px 24px rgba(0,0,0,.08);
+  padding:6px 0; display:flex; flex-direction:column;
+}
+.menu-list.right{left:auto; right:0}
+.topbar .menu-list a,.topbar .menu-list .menu-item{
+  display:block; padding:9px 16px; font-family:'Barlow Condensed',sans-serif; font-size:15.5px;
+  letter-spacing:.04em; color:var(--ink2); text-decoration:none; text-transform:none;
+  background:none; border:0; border-bottom:0; text-align:left; cursor:pointer; white-space:nowrap;
+}
+.topbar .menu-list a:hover,.topbar .menu-list .menu-item:hover{background:var(--ghost); color:var(--ink)}
+.topbar .menu-list a.on{color:var(--run)}
+.menu-list .menu-item{border-top:1px solid var(--line2); margin-top:4px; padding-top:11px}
+
+/* The sync control: one bordered chip, verb above, the date it reaches beneath. */
+.sync{
+  display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:6px 12px 5px;
+  border:1px solid var(--line); background:var(--raise); text-decoration:none; cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif; line-height:1.1; min-width:74px;
+}
+.sync b{font-size:13.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--ink)}
+.sync span{font-size:12px; color:var(--mut); letter-spacing:.03em}
+.sync.stale{border-color:var(--warn)}
+.sync.stale span,.sync.stale b{color:var(--warn)}
+.sync:hover{border-color:var(--ink)}
+
+/* The profile button: avatar or initial, name, and the account menu under it. */
+.who-btn{gap:9px; padding:0 4px 0 10px; text-transform:none; letter-spacing:.02em; font-size:15px}
+.who-btn img{width:26px; height:26px; border-radius:50%; display:block}
+.who-btn b{
+  width:26px; height:26px; border-radius:50%; background:var(--ink); color:var(--paper);
+  display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;
+}
+.who{display:flex; align-items:stretch}
+.topbar-right{gap:12px}
+
+/* ---- training: the week down the side, the day in front --------------- */
+.training{display:grid; grid-template-columns:minmax(280px,340px) 1fr; gap:22px; align-items:start; margin-top:18px}
+.rail .day{
+  grid-template-columns:58px 1fr 22px; grid-template-areas:"name plan fb" "name act fb";
+  gap:4px 8px; padding:10px 8px 10px 12px; align-items:start;
+}
+.rail .day-name{grid-area:name}
+.rail .day-plan{grid-area:plan}
+.rail .day-act{grid-area:act; font-size:13.5px; color:var(--mut); gap:4px 9px}
+.rail .day-act .sport s{width:6px; height:6px}
+.rail .day-act:empty{display:none}
+.rail .day-fb{grid-area:fb; justify-content:flex-end; align-self:center}
+.rail .day-name b{font-size:15.5px}
+.rail .day-name span{font-size:12.5px}
+.rail .day-plan{font-size:14.5px; gap:4px 9px}
+.rail .day-plan .pl s{width:6px; height:6px}
+.rail .day.is-sel{background:var(--card); box-shadow:inset 0 0 0 1px var(--ink)}
+.rail .day.is-sel::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--run)}
+.rail .day.is-today .day-name b{color:var(--run)}
+.rail .editrows{font-size:14px}
+.pane .today{margin:0}
+.pane .daynav{padding:14px 18px 12px; border-bottom:1px solid var(--line2)}
+.pane .day-actions{padding:12px 18px 14px; border-top:1px solid var(--line2)}
+@media (max-width:900px){
+  .training{grid-template-columns:1fr}
+}

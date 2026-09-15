@@ -1,4 +1,4 @@
-# Volume Ledger
+# Chaos Coaching
 
 A training log that runs on your own machine. It pulls your real data from
 Strava, shows what to do each day, takes your notes after every session, and

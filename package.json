@@ -1,9 +1,9 @@
 {
-  "name": "volume-ledger",
+  "name": "chaos-coaching",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Training log that syncs Strava and plans each week with Claude",
+  "description": "Chaos Coaching — a training log with a coach in it",
   "engines": {
     "node": ">=22.5"
   },
