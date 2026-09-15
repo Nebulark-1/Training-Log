@@ -17,7 +17,7 @@
 // the same normalizer the API path uses.
 import fs from 'node:fs';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { db, initDb, setTier } from './db.js';
+import { db, deleteUser, initDb, setTier } from './db.js';
 import {
   RULES, GoalAssessmentSchema, MacrocycleSchema, ProgramReviewSchema, ReviewSchema,
   WeekPlanSchema, applyGoalAssessment, applyMacrocycle, applyProgramReview, applyReview,
@@ -160,6 +160,28 @@ switch (command) {
     break;
   }
 
+  case 'forget': {
+    // npm run coach -- forget someone@gmail.com --yes
+    // The answer to "please delete my data", and the only thing here that
+    // cannot be undone, so it asks to be told twice.
+    const email = positional[0];
+    if (!email) die('Usage: forget <email> --yes');
+    const row = db.prepare('SELECT id, name FROM users WHERE lower(email) = lower(?)').get(email);
+    if (!row) die(`No account with the address ${email}.`);
+    if (!args.includes('--yes')) {
+      die(`This erases ${row.name || email} and everything they logged, permanently.`
+        + `
+  Run it again with --yes if that is what you mean.`);
+    }
+    const gone = deleteUser(row.id);
+    const what = Object.entries(gone).filter(([, n]) => n).map(([t, n]) => `${n} ${t}`).join(', ');
+    process.stdout.write(`
+  Erased ${row.name || email}${what ? `: ${what}` : ' (nothing logged)'}.
+
+`);
+    break;
+  }
+
   case 'context': {
     const weeks = Number(args.find((a) => a.startsWith('--weeks='))?.slice(8)) || 12;
     const sessions = Number(args.find((a) => a.startsWith('--sessions='))?.slice(11)) || 24;
@@ -272,6 +294,7 @@ switch (command) {
 
     npm run coach -- users
     npm run coach -- tier <email> <basic|plus|expert>
+    npm run coach -- forget <email> --yes
     npm run coach -- strava-webhook status | subscribe | delete
     npm run coach -- context [--weeks=12] [--sessions=24]
     npm run coach -- prompt plan-week [2026-W38]

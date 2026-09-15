@@ -394,6 +394,11 @@ Three things that are not code problems:
   monthly budget per account, a daily ceiling on coaching calls, and a short
   cooldown between them. `coach_runs` is the bill.
 
+If a tester asks to be forgotten, `npm run coach -- forget <email> --yes`
+erases the account and everything attached to it in one statement — every
+table references `users(id) ON DELETE CASCADE` and foreign keys are on, so
+there is nothing left to miss.
+
 The server also guards itself: a per-address request ceiling on `/api`, a
 256 KB body limit, the usual security headers, `/healthz` for the host's
 uptime check, and `/api/ops` (owner only) for the Strava allowance, webhook

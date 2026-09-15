@@ -527,7 +527,8 @@ api.get('/ops', (req, res) => {
  * Snapshots. The export route hands back JSON a human can read; this one takes
  * a real copy of the database, which is what you actually restore from.
  */
-api.get('/backups', (_req, res) => {
+api.get('/backups', (req, res) => {
+  if (!coachingFor(req.user.id).owner) return res.status(403).json({ error: 'owner_only' });
   res.json({
     dir: BACKUP_DIR,
     schema: dbVersion(),
@@ -535,7 +536,10 @@ api.get('/backups', (_req, res) => {
   });
 });
 
-api.post('/backups', (_req, res) => {
+api.post('/backups', (req, res) => {
+  // A snapshot copies everyone's ledger and costs disk; it is the operator's
+  // button, not an athlete's.
+  if (!coachingFor(req.user.id).owner) return res.status(403).json({ error: 'owner_only' });
   const made = snapshot(db, { tag: 'manual' });
   if (made?.error) return res.status(500).json({ error: made.error });
   res.json({ ok: true, path: made.path, bytes: made.bytes, backups: listBackups().length });

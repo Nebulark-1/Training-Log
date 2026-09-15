@@ -57,6 +57,20 @@ export function createUser({ googleSub = null, email = null, name = null, pictur
 export function setTier(id, tier) {
   db.prepare('UPDATE users SET tier = ? WHERE id = ?').run(tier, id);
 }
+/**
+ * Erase an account. Every table that holds an athlete's data references
+ * users(id) ON DELETE CASCADE and foreign keys are on, so this one row is the
+ * whole of it — which is the point: a tester who asks to be forgotten should
+ * be forgotten in one statement, not in fourteen I might miscount.
+ */
+export function deleteUser(id) {
+  const counts = {};
+  for (const t of ['activities', 'feedback', 'weeks', 'digests', 'goals', 'goal_assessments', 'coach_runs']) {
+    counts[t] = db.prepare(`SELECT COUNT(*) AS n FROM ${t} WHERE user_id = ?`).get(id).n;
+  }
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  return counts;
+}
 export function countUsers() {
   return db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 }
