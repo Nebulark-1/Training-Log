@@ -44,8 +44,8 @@ export default {
   render(ctx) {
     const loaded = window.__vlInjuries;
     if (!loaded) {
-      return pageHead({ eyebrow: 'Where it hurts', title: 'Injuries' })
-        + '<div class="emptystate"><p>Reading your pain history…</p></div>';
+      return pageHead({ eyebrow: 'Body', title: 'Injuries' })
+        + '<div class="emptystate"><p>Loading…</p></div>';
     }
 
     const cutoff = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
@@ -63,10 +63,8 @@ export default {
     ].map(([d, label]) => `<button class="tab${windowDays === d ? ' on' : ''}" data-window="${d}">${label}</button>`).join('');
 
     return pageHead({
-      eyebrow: 'Where it hurts',
+      eyebrow: 'Body',
       title: 'Injuries',
-      note: 'Every session where you logged pain above zero, placed on the body. Repeated spots '
-        + 'are what matter — a single sore day is noise, the same spot three times is a pattern.',
       actions: `<div class="tabs">${windows}</div>`,
     })
       + '<div class="stats tight">'
@@ -78,16 +76,13 @@ export default {
       + '</div>'
 
       + (mapped.length
-        ? `<section class="chartblock"><div class="cb-head"><h2>Heat map</h2>`
-          + '<span class="cb-note">bigger and warmer means it hurt more</span></div>'
+        ? '<section class="chartblock"><div class="cb-head"><h2>Where</h2></div>'
           + renderHeatMap(mapped)
           + '</section>'
-        : '<div class="emptystate"><p>Nothing mapped in this window yet. Log pain above zero on a '
-          + 'session and point at the spot — it will start building here.</p></div>')
+        : '<div class="emptystate"><p>Nothing in this window.</p></div>')
 
       + (rows.length
-        ? '<section class="chartblock"><div class="cb-head"><h2>Trouble points</h2>'
-          + '<span class="cb-note">grouped by side and structure, most frequent first</span></div>'
+        ? '<section class="chartblock"><div class="cb-head"><h2>Trouble points</h2></div>'
           + troubleTable(rows) + '</section>'
         : '')
 
@@ -108,10 +103,7 @@ export default {
         : '')
 
       + (unmapped.length
-        ? '<section class="chartblock"><div class="cb-head"><h2>Logged before the body map</h2>'
-          + `<span class="cb-note">${unmapped.length} written as text</span></div>`
-          + '<p class="help">These were recorded as free text, so they cannot be placed on the body. '
-          + 'They still count toward trouble points by their wording.</p>'
+        ? '<section class="chartblock"><div class="cb-head"><h2>Not on the map</h2></div>'
           + '<ul class="plainlist">'
           + unmapped.slice(0, 12).map((e) => `<li><span>${shortDate(e.date)}</span> `
             + `${esc(e.painSite)} — ${e.pain}/10</li>`).join('')

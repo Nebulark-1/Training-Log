@@ -101,9 +101,6 @@ export function openLiftLog(session, prescription, ctx, existingFeedback = {}) {
     + '<input type="text" id="newEx" list="movementList" placeholder="Farmer’s carry" autocomplete="off">'
     + '<button type="button" id="addEx">Add</button>'
     + '</div>'
-    + '<p class="help" style="margin:8px 0 0">Anything you add is logged as off-program. '
-    + 'The coach sees it at the next program review and decides whether it earns a permanent place, '
-    + 'a trial run, or stays a one-off.</p>'
     + '</section>';
 
   const inner = openSheet(

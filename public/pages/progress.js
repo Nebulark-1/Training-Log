@@ -2,7 +2,9 @@
 import { lineChart, plannedVsActual, scoreMeter, stackedLoad } from '../components/charts.js';
 import { SPORTS, ENDURANCE_SPORTS, formatVolume, sportKey } from '../lib/sports.js';
 import { weekLabel } from '../lib/dates.js';
-import { esc, n0, n1, pageHead, shortDate, signed, stat } from '../lib/ui.js';
+import {
+  coachBlock, esc, n0, n1, needsClaude, pageHead, shortDate, signed, stat,
+} from '../lib/ui.js';
 
 let sport = 'run';
 
@@ -20,11 +22,10 @@ function cumulative(weekly, key) {
   return { actual, target };
 }
 
-function scoreDetail(title, score, explanation, rows) {
+function scoreDetail(title, score, rows) {
   if (!score) return '';
   return '<details class="scorecard"><summary>'
     + `<b>${score.score ?? '—'}</b> ${esc(title)} <span>${esc(score.basis || '')}</span></summary>`
-    + `<p class="help">${explanation}</p>`
     + '<div class="tablewrap"><table class="kvtable"><tbody>'
     + rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${v}</td></tr>`).join('')
     + '</tbody></table></div></details>';
@@ -37,17 +38,15 @@ const WEIGHT_MARK = { major: '\u25CF\u25CF\u25CF', moderate: '\u25CF\u25CF', min
  * The coach's read on the goal. This is the confidence the app means — the
  * arithmetic one is kept further down the page, labelled as what it is.
  */
-function assessmentBlock(f) {
+function assessmentBlock(f, claudeOn) {
   const a = f.assessment;
+  const button = (label, solid) => (claudeOn
+    ? `<button${solid ? ' class="solid"' : ''} id="assessGoal"${f.primaryGoalId ? '' : ' disabled'}>${label}</button>`
+    : needsClaude(label));
   if (!a) {
-    return '<section class="chartblock"><div class="cb-head"><h2>Goal confidence</h2></div>'
-      + '<div class="emptystate"><p>No assessment yet. The coach reads your ramp against the one '
-      + 'you have actually held, whether the plan is being executed, whether the bar is still '
-      + 'moving, and what keeps hurting — then says what the odds are.</p>'
-      + `<div class="btnrow"><button class="solid" id="assessGoal"${f.primaryGoalId ? '' : ' disabled'}>`
-      + 'Assess the goal</button>'
-      + (f.primaryGoalId ? '' : '<span class="mut">Set a primary goal in Setup first.</span>')
-      + '<span class="thinking" id="assessStatus"></span></div></div></section>';
+    return '<div class="emptystate"><p>The goal has not been assessed yet.</p>'
+      + `<div class="btnrow">${button('Assess the goal', true)}`
+      + '<span class="thinking" id="assessStatus"></span></div></div>';
   }
 
   const supports = a.drivers.filter((d) => d.direction === 'supports');
@@ -59,21 +58,20 @@ function assessmentBlock(f) {
       + '</ul></div>'
     : '');
 
-  return '<section class="chartblock assessment">'
-    + '<div class="cb-head"><h2>Goal confidence</h2>'
-    + `<span class="cb-note">${esc(a.evidenceQuality)} evidence &middot; ${shortDate(a.asOf)}`
-    + `${a.kind === 'baseline' ? ' &middot; first assessment' : ''}</span></div>`
-    + `<p class="as-head">${esc(a.headline)}</p>`
-    + `<p class="as-limiter"><i>Biggest limiter</i> ${esc(a.limiter)}</p>`
-    + `<div class="drivers">${column('What supports it', supports, 'up')}`
-    + `${column('What threatens it', threatens, 'down')}</div>`
-    + `<p class="as-reason">${esc(a.reasoning)}</p>`
-    + '<div class="grid2 as-moves">'
-    + `<div><i>Would raise it</i><p>${esc(a.wouldRaiseIt)}</p></div>`
-    + `<div><i>Would lower it</i><p>${esc(a.wouldLowerIt)}</p></div></div>`
-    + '<div class="btnrow"><button id="assessGoal">Reassess</button>'
-    + '<span class="thinking" id="assessStatus"></span></div>'
-    + '</section>';
+  return coachBlock({
+    title: 'On the goal',
+    when: `${shortDate(a.asOf)} · ${a.evidenceQuality} evidence`,
+    cls: 'assessment',
+    extra: `<p class="as-head">${esc(a.headline)}</p>`
+      + `<p class="as-limiter"><i>Limiter</i> ${esc(a.limiter)}</p>`
+      + `<div class="drivers">${column('For', supports, 'up')}${column('Against', threatens, 'down')}</div>`
+      + `<p class="as-reason">${esc(a.reasoning)}</p>`
+      + '<div class="grid2 as-moves">'
+      + `<div><i>Would raise it</i><p>${esc(a.wouldRaiseIt)}</p></div>`
+      + `<div><i>Would lower it</i><p>${esc(a.wouldLowerIt)}</p></div></div>`
+      + `<div class="btnrow">${button('Reassess', false)}`
+      + '<span class="thinking" id="assessStatus"></span></div>',
+  });
 }
 
 export default {
@@ -83,9 +81,8 @@ export default {
   render(ctx) {
     const f = ctx.fitness;
     if (!f) {
-      return pageHead({ eyebrow: 'Derived', title: 'Progress' })
-        + '<div class="emptystate"><p>Working out endurance, speed and goal confidence from your '
-        + 'history…</p></div>';
+      return pageHead({ eyebrow: 'Scores', title: 'Progress' })
+        + '<div class="emptystate"><p>Loading…</p></div>';
     }
 
     const weekly = f.weekly || [];
@@ -127,22 +124,17 @@ export default {
       .map((s) => `<button class="tab${s === key ? ' on' : ''}" data-sport="${s}">${esc(SPORTS[s].label)}</button>`)
       .join('');
 
-    return pageHead({
-      eyebrow: 'Derived from your log',
-      title: 'Progress',
-      note: 'Everything on this page is computed from what you actually did. The three scores are '
-        + 'v0 heuristics measured against your own history, not against other people.',
-    })
+    return pageHead({ eyebrow: 'Scores', title: 'Progress' })
       + '<div class="scores wide">'
       + scoreMeter(f.endurance?.score, { label: 'Endurance', color: 'var(--bike)', caption: 'accumulated aerobic work' })
       + scoreMeter(f.speed?.score, { label: 'Speed', color: 'var(--run)', caption: 'quality of that work' })
       + scoreMeter(f.assessment?.confidence, {
         label: 'Goal confidence',
         color: 'var(--swim)',
-        caption: f.assessment ? `${f.assessment.evidenceQuality} evidence` : 'not assessed yet',
+        caption: f.assessment ? `${f.assessment.evidenceQuality} evidence` : 'not assessed',
       })
       + '</div>'
-      + assessmentBlock(f)
+      + assessmentBlock(f, Boolean(ctx.data.claude?.available))
 
       + '<section class="chartblock">'
       + `<div class="cb-head"><h2>Weekly ${esc(info.label.toLowerCase())} volume</h2>`
@@ -205,21 +197,9 @@ export default {
 
       + '<h2 class="sub-h">What the numbers are made of</h2>'
       + scoreDetail('Endurance', f.endurance,
-        'How much aerobic work the body is currently carrying, judged against the most it has ever '
-        + 'carried. Chronic 28-day load does most of the work; consistency and longest session adjust it. '
-        + 'Riding six easy hours a day would score high here — that is intended.',
         Object.entries(f.endurance?.inputs || {}).map(([k, v]) => [k, esc(String(v))]))
       + scoreDetail('Speed', f.speed,
-        'The quality of the work rather than the amount. Share of time above aerobic base, whether easy '
-        + 'pace at a given heart rate is improving, and whether best efforts are trending faster. Volume '
-        + 'alone cannot move this.',
-        Object.entries(f.speed?.inputs || {}).map(([k, v]) => [k, esc(typeof v === 'object' ? JSON.stringify(v) : String(v))]))
-      + scoreDetail('Confidence, the arithmetic version', f.confidenceHeuristic,
-        'Kept for comparison, and no longer what the app shows. Backtesting it against this log found '
-        + 'it correlated with what actually happened at -0.82, while last month\'s volume on its own '
-        + 'managed -0.95 — so it was restating current volume rather than judging anything. Run '
-        + 'npm run backtest to see that for yourself.',
-        Object.entries(f.confidenceHeuristic?.inputs || {}).map(([k, v]) => [k, esc(String(v))]));
+        Object.entries(f.speed?.inputs || {}).map(([k, v]) => [k, esc(typeof v === 'object' ? JSON.stringify(v) : String(v))]));
   },
 
   async mount(ctx, root) {

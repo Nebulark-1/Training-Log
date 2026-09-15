@@ -165,13 +165,13 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
   const stageMarkup = () => {
     if (stage === 'both') {
       return '<div class="bm-views">'
-        + frame('front', { site: current, heat: history, role: 'open', caption: 'Front · tap to open' })
-        + frame('back', { site: current, heat: history, role: 'open', caption: 'Back · tap to open' })
+        + frame('front', { site: current, heat: history, role: 'open', caption: 'Front' })
+        + frame('back', { site: current, heat: history, role: 'open', caption: 'Back' })
         + '</div>';
     }
     if (stage === 'view') {
       return `<div class="bm-views one">${frame(openView, {
-        site: current, heat: history, role: 'pick', caption: 'Tap where it hurts',
+        site: current, heat: history, role: 'pick', caption: '',
       })}</div>`;
     }
     return `<div class="bm-views one">${frame(current.view, {
@@ -180,7 +180,7 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
       crop: cropFor(current),
       lit: siteQuads(current, hover ?? current.structure),
       role: 'pick',
-      caption: 'Tap to move the pin',
+      caption: '',
       clipId,
     })}</div>`;
   };
@@ -192,22 +192,13 @@ export function mountBodyMap(container, { site = null, history = [], onChange = 
       + '<div class="bm-body">'
       + `<div class="bm-stage">${stageMarkup()}</div>`
       + '<div class="bm-readout">'
-      + (stage === 'both'
-        ? '<p class="bm-hint">Open a figure to point at the spot. <b>L</b> and <b>R</b> are marked '
-          + 'from your point of view, not the screen’s — the front figure faces you, so its left '
-          + 'side is your right.</p>'
-        : '')
-      + (stage === 'view'
-        ? '<p class="bm-hint">Tap anywhere on the figure. It zooms in on that part of the body so '
-          + 'you can name the structure.</p>'
-        : '')
+      + (stage === 'both' ? '<p class="bm-hint">Tap a figure.</p>' : '')
+      + (stage === 'view' ? '<p class="bm-hint">Tap where it hurts.</p>' : '')
       + (stage === 'zone' && current
         ? `<p class="bm-where"><b>${esc(describeSite(current))}</b>`
           + '<button type="button" class="link" id="bmClear">clear</button></p>'
-          + '<p class="bm-hint">Narrow it down if you can — the more specific it is, the more '
-          + 'useful the pattern becomes later. Hovering a name lights up the area it covers.</p>'
           + structureChips(zone, current.structure)
-          + '<div class="field bm-free"><label for="bmNote">Or describe it yourself</label>'
+          + '<div class="field bm-free"><label for="bmNote">Or in your own words</label>'
           + `<input type="text" id="bmNote" value="${esc(current.structure ? '' : (current.freeText || ''))}"`
           + ' placeholder="e.g. just behind the medial malleolus"></div>'
         : '')

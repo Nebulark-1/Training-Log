@@ -3,7 +3,9 @@ import { setDay } from './today.js';
 import { clearDay, openSessionEdit, openSessionMove } from '../components/planedit.js';
 import { SPORTS, ENDURANCE_SPORTS, formatVolume, isStrength, sportKey } from '../lib/sports.js';
 import { DOW, MON, isoWeek, mondayOf, weekAdd, weekDates, ymd } from '../lib/dates.js';
-import { esc, hm, mmss, n0, n1, pageHead, violationList } from '../lib/ui.js';
+import {
+  coachBlock, coachLine, esc, hm, mmss, n0, n1, needsClaude, pageHead, violationList,
+} from '../lib/ui.js';
 
 let weekOffset = 0;
 let editing = false;
@@ -124,13 +126,13 @@ export default {
       actions.push(`<button class="${wk ? '' : 'solid'}" data-plan="${weekKey}">${wk ? 'Re-plan this week' : `Plan ${weekKey}`}</button>`);
       if (isThis) actions.push(`<button data-plan="${weekAdd(weekKey, 1)}">Plan next week</button>`);
     } else {
-      actions.push(`<span class="thinking">No API key — <code>npm run coach -- prompt plan-week ${weekKey}</code></span>`);
+      actions.push(needsClaude(wk ? 'Re-plan this week' : `Plan ${weekKey}`));
     }
 
     return pageHead({
       eyebrow: isThis ? 'This week' : weekOffset > 0 ? 'Ahead' : 'Behind',
       title: weekKey,
-      note: wk?.focus ? esc(wk.focus) : (wk?.deload ? 'Deload week' : ''),
+      note: wk?.focus ? coachLine(wk.focus) : (wk?.deload ? 'Deload week' : ''),
       actions: '<div class="daynav">'
         + '<button data-week="-1" aria-label="Previous week">&lsaquo;</button>'
         + `<span class="wk-label">${esc(weekKey)}</span>`
@@ -141,11 +143,9 @@ export default {
       + (tiles ? `<div class="voltiles">${tiles}</div>` : '')
       + `<section class="card wk">${days}</section>`
       + (wk?.coachNote
-        ? `<section class="coach"><div class="coachtext">${wk.coachNote.split(/\n\n+/).map((p) => `<p>${esc(p)}</p>`).join('')}</div>`
-          + (wk.adjustments?.length ? `<ul class="adj">${wk.adjustments.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : '')
-          + '</section>'
+        ? coachBlock({ body: wk.coachNote, verdict: wk.verdict, list: wk.adjustments || [] })
         : '')
-      + violationList(wk?.violations, { title: 'Guardrails on this plan' })
+      + violationList(wk?.violations)
       + `<div class="btnrow" style="margin-top:18px">${actions.join('')}</div>`
       + '<div class="thinking" id="workStatus" hidden></div>';
   },

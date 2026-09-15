@@ -299,8 +299,7 @@ function renderGate() {
   if (a.google) actions.push('<a href="/auth/google/start"><button class="solid">Sign in with Google</button></a>');
   if (a.devLogin) actions.push(`<button ${a.google ? '' : 'class="solid"'} id="devLogin">Use the local account</button>`);
   if (!actions.length) {
-    actions.push('<span class="thinking err">No sign-in method is configured. Add Google credentials to '
-      + '.env, or bind the server to localhost to enable the local account.</span>');
+    actions.push('<span class="thinking err">Sign-in is not set up yet.</span>');
   }
   $('gateActions').innerHTML = actions.join('');
 
@@ -308,14 +307,9 @@ function renderGate() {
   const authError = {
     denied: 'Sign-in was cancelled.',
     badstate: 'That sign-in link expired. Try again.',
-    failed: 'Sign-in failed. Check the server log.',
+    failed: 'Sign-in failed. Try again.',
   }[params.get('auth')];
-  $('gateNote').innerHTML = authError
-    ? `<span style="color:var(--flag)">${esc(authError)}</span>`
-    : a.devLogin && !a.google
-      ? 'Running without Google credentials, so the local account is enabled. Add GOOGLE_CLIENT_ID '
-        + 'and GOOGLE_CLIENT_SECRET to .env for real sign-in.'
-      : '';
+  $('gateNote').innerHTML = authError ? `<span style="color:var(--flag)">${esc(authError)}</span>` : '';
 }
 
 function announceConnections() {
@@ -325,7 +319,7 @@ function announceConnections() {
     denied: ['Strava authorization was cancelled.', true],
     scope: ['Strava needs the "view private activities" permission. Connect again and allow it.', true],
     badstate: ['That Strava link expired. Try connecting again.', true],
-    failed: ['Connecting Strava failed. Check the server log.', true],
+    failed: ['Connecting Strava failed. Try again.', true],
   }[params.get('strava')];
   if (msg) toast(msg[0], msg[1]);
   if (params.get('strava') || params.get('auth')) {
@@ -338,8 +332,8 @@ function announceConnections() {
   try {
     state.auth = await api('/auth/status');
   } catch {
-    document.body.innerHTML = '<div class="shell"><div class="gate"><h1>Server unreachable</h1>'
-      + '<p>The Volume Ledger server is not responding. Start it with <code>npm start</code>.</p></div></div>';
+    document.body.innerHTML = '<div class="shell"><div class="gate"><h1>Volume Ledger</h1>'
+      + '<p>Can\'t connect right now. Try again in a moment.</p></div></div>';
     return;
   }
 

@@ -146,10 +146,9 @@ export function openSessionEdit(ctx, { weekKey, dayIndex, sessionIndex = null })
     + '<label for="seProgram">Strength session</label><select id="seProgram">'
     + (program?.sessions || []).map((ps) => `<option value="${esc(ps.id)}"${s.programSession === ps.id ? ' selected' : ''}>`
       + `${esc(ps.id)} — ${esc(ps.name)}</option>`).join('')
-    + '</select><div class="scalenote">The movements and loads come from the program, not from here. '
-    + 'Change them on the <a href="/strength" data-link>Strength</a> page.</div></div>'
+    + '</select></div>'
     + `<div class="field"><label for="seDetail">Instruction</label>`
-    + `<textarea id="seDetail" placeholder="One sentence you can act on without interpreting.">${esc(s.detail || '')}</textarea></div>`
+    + `<textarea id="seDetail">${esc(s.detail || '')}</textarea></div>`
     + `<label class="check"><input type="checkbox" id="seOptional"${s.optional ? ' checked' : ''}> Optional — drop it if the week gets tight</label>`
     + '<div class="btnrow"><button class="solid" id="seSave">Save</button>'
     + '<button type="button" data-close="1">Cancel</button>'

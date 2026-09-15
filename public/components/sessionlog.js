@@ -1,7 +1,7 @@
 // Sheets for endurance sessions: the post-session note, and logging something
 // Strava did not record.
 import { mountBodyMap } from './bodymap.js';
-import { SPORTS, sportKey } from '../lib/sports.js';
+import { SPORTS, isStrength, sportKey } from '../lib/sports.js';
 import {
   closeSheet, comma, esc, FEEL, hm, longDate, mmss, n0, n1, openSheet, toast,
 } from '../lib/ui.js';
@@ -156,8 +156,6 @@ export function openManual(ctx, { date, sport = 'run' } = {}) {
     + '<div class="field"><label for="mElev">Elevation (ft)</label><input type="number" id="mElev" step="1"></div>'
     + '<div class="field"><label for="mHr">Average HR</label><input type="number" id="mHr" step="1"></div>'
     + '</div>'
-    + '<p class="help">Logging a lift here creates the session; open it afterwards to record sets, '
-    + 'reps and weight.</p>'
     + '<div class="btnrow"><button class="solid" id="mSave">Save session</button>'
     + '<button type="button" data-close="1">Cancel</button>'
     + '<span class="thinking" id="mStatus"></span></div>',
@@ -167,7 +165,7 @@ export function openManual(ctx, { date, sport = 'run' } = {}) {
         status.className = 'thinking';
         status.textContent = 'Saving…';
         try {
-          await ctx.api('/api/sessions', {
+          const out = await ctx.api('/api/sessions', {
             method: 'POST',
             body: {
               sport: root.querySelector('#mSport').value,
@@ -181,7 +179,13 @@ export function openManual(ctx, { date, sport = 'run' } = {}) {
           });
           closeSheet();
           await ctx.refresh();
-          toast('Session logged.');
+          // A lift is reps and weight, so go straight to logging them.
+          if (isStrength(out?.session?.sport) && out.session) {
+            const { openLiftLog } = await import('./liftlog.js');
+            openLiftLog(out.session, null, ctx, {});
+          } else {
+            toast('Session logged.');
+          }
         } catch (err) {
           status.className = 'thinking err';
           status.textContent = err.message;

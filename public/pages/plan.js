@@ -1,7 +1,7 @@
 // The plan — the macrocycle, its phases, and the weeks ahead.
 import { SPORTS, ENDURANCE_SPORTS, formatVolume } from '../lib/sports.js';
 import { weekLabel } from '../lib/dates.js';
-import { esc, localDay, n0, pageHead } from '../lib/ui.js';
+import { coachBlock, esc, localDay, n0, needsClaude, pageHead } from '../lib/ui.js';
 
 export default {
   path: '/plan',
@@ -13,14 +13,14 @@ export default {
     const goals = ctx.data.goals || [];
     const primary = goals.find((g) => g.primary) || goals[0];
 
+    const label = plan ? 'Rebuild the plan' : 'Build the plan';
     const actions = ctx.data.claude?.available
-      ? `<button class="solid" id="buildPlan">${plan ? 'Rebuild from my history' : 'Build the plan'}</button>`
-      : '<span class="thinking">No API key — <code>npm run coach -- prompt build-plan</code></span>';
+      ? `<button class="solid" id="buildPlan">${label}</button>`
+      : needsClaude(label);
 
     if (!plan) {
-      return pageHead({ eyebrow: 'Macrocycle', title: 'The plan', actions })
-        + '<div class="emptystate"><p>No macrocycle yet. Sync your Strava history, then let the coach '
-        + 'build the phases from where you actually are rather than from an assumption.</p></div>'
+      return pageHead({ eyebrow: 'Season', title: 'Plan', actions })
+        + '<div class="emptystate"><p>No plan yet.</p></div>'
         + '<div class="thinking" id="workStatus" hidden></div>';
     }
 
@@ -60,12 +60,12 @@ export default {
       : '';
 
     return pageHead({
-      eyebrow: `Macrocycle, built ${localDay(plan.generatedAt)}${plan.source === 'seed' ? ' from your plan document' : ''}`,
-      title: 'The plan',
-      note: primary ? `Toward ${esc(primary.label || primary.target)}${plan.targetDate ? ` by ${esc(plan.targetDate)}` : ''}` : '',
+      eyebrow: 'Season',
+      title: 'Plan',
+      note: primary ? `${esc(primary.label || primary.target)}${plan.targetDate ? ` by ${esc(plan.targetDate)}` : ''}` : '',
       actions,
     })
-      + (plan.rationale ? `<section class="coach"><div class="coachtext"><p>${esc(plan.rationale)}</p></div></section>` : '')
+      + (plan.rationale ? coachBlock({ body: plan.rationale, when: localDay(plan.generatedAt) }) : '')
       + `<div class="phases">${phases}</div>`
       + table
       + '<div class="thinking" id="workStatus" hidden></div>';
@@ -80,8 +80,7 @@ export default {
       ));
       if (out && !out.error) {
         await ctx.refresh();
-        ctx.toast(`Plan rebuilt — ${out.plan.phases?.length || 0} phases`
-          + `${out.plan.targetDate ? `, target ${out.plan.targetDate}` : ''}.`);
+        ctx.toast('Plan rebuilt.');
       }
     });
   },

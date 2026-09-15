@@ -7,7 +7,7 @@ import {
   DOW, MON, daysBetween, isoWeek, mondayOf, parseYmd, ymd,
 } from '../lib/dates.js';
 import {
-  esc, n0, pageHead, shortDate, violationList,
+  coachLine, esc, n0, pageHead, shortDate, violationList,
 } from '../lib/ui.js';
 
 let dayOffset = 0;
@@ -87,7 +87,7 @@ function needsNotes(ctx) {
 function scoreStrip(ctx) {
   const f = ctx.fitness;
   if (!f) {
-    return '<div class="scores loading"><button id="loadFitness" class="link">Show endurance, speed and goal confidence</button></div>';
+    return '<div class="scores loading"></div>';
   }
   const a = f.assessment;
   return '<div class="scores">'
@@ -106,9 +106,7 @@ function scoreStrip(ctx) {
       color: 'var(--swim)',
       caption: a ? `${a.evidenceQuality} evidence, ${shortDate(a.asOf)}` : 'not assessed yet',
     })
-    + (a?.headline ? `<p class="scores-note lead">${esc(a.headline)}</p>` : '')
-    + '<p class="scores-note">Endurance and speed are computed from your log. Confidence is the '
-    + "coach's judgement. <a href=\"/progress\" data-link>How these are built</a></p>"
+
     + '</div>';
 }
 
@@ -191,9 +189,9 @@ export default {
     if (!wk) actions.push(`<a href="/week" data-link><button>Plan ${esc(wkKey)}</button></a>`);
 
     return pageHead({
-      eyebrow: relLabel(ctx, date) === 'Today' ? 'The day' : 'Looking ahead',
+      eyebrow: relLabel(ctx, date) === 'Today' ? 'Today' : 'Day',
       title: relLabel(ctx, date),
-      note: wk?.focus ? esc(wk.focus) : (nf.length ? `${nf.length} session${nf.length === 1 ? '' : 's'} still need a note` : ''),
+      note: wk?.focus ? coachLine(wk.focus) : (nf.length ? `${nf.length} session${nf.length === 1 ? '' : 's'} still need a note` : ''),
       actions: '<span class="kbdhint">← → to change day</span>',
     })
       + scoreStrip(ctx)
@@ -204,6 +202,11 @@ export default {
   },
 
   mount(ctx, root) {
+    // Scores load themselves; a page should not ask to be clicked before it fills in.
+    if (!ctx.fitness && !window.__vlFitnessLoading) {
+      window.__vlFitnessLoading = true;
+      ctx.loadFitness().catch(() => {}).finally(() => { window.__vlFitnessLoading = false; });
+    }
     root.addEventListener('click', async (e) => {
       const t = e.target;
       const day = t.closest('[data-day]');

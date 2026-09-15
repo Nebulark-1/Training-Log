@@ -76,7 +76,7 @@ export function openMovementSheet(ctx, { sessionId, exId = null, mode = 'edit' }
   const picker = mode === 'edit' ? '' : '<div class="field"><label for="pmPick">'
     + `${mode === 'swap' ? 'Replace it with' : 'Movement'}</label>`
     + `<select id="pmPick">${catalogOptions(null, pattern)}</select>`
-    + '<div class="scalenote">Sorted with the same pattern first, so the program keeps covering what it covered.</div></div>'
+    + '</div>'
     + '<div class="field"><label for="pmCustom">Or something not on the list</label>'
     + '<input type="text" id="pmCustom" placeholder="Leave blank to use the choice above"></div>';
 
@@ -103,13 +103,9 @@ export function openMovementSheet(ctx, { sessionId, exId = null, mode = 'edit' }
     + '<input type="number" id="pmWeeks" min="2" max="16" value="6"></div>'
     + (needsReason
       ? '<div class="field"><label for="pmReason">Why</label>'
-        + `<textarea id="pmReason" placeholder="${mode === 'swap'
-          ? 'Dropping a core movement needs a reason — it goes in the program history.'
-          : 'What changed your mind about this one.'}"></textarea>`
-        + '<div class="scalenote">A core movement cannot be dropped without one. Tendons adapt over '
-        + 'months, so the record of why the program changed matters later.</div></div>'
+        + '<textarea id="pmReason"></textarea></div>'
       : '<div class="field"><label for="pmReason">Note (optional)</label>'
-        + '<input type="text" id="pmReason" placeholder="Why you are adding it"></div>')
+        + '<input type="text" id="pmReason"></div>')
     + '<div class="btnrow"><button class="solid" id="pmSave">'
     + `${mode === 'swap' ? 'Swap it' : mode === 'add' ? 'Add it' : 'Save'}</button>`
     + '<button type="button" data-close="1">Cancel</button>'

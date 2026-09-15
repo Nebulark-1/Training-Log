@@ -51,7 +51,7 @@ export function seedUser(userId) {
       byDate: settings.targetDate || '',
       primary: true,
       label: `${Number(settings.targetMpw) || 75} run miles a week, sustained`,
-      note: 'Seeded from the original goal. Edit or replace it in Goals.',
+      note: '',
       source: 'seed',
     });
   }

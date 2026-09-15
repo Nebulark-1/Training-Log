@@ -6,7 +6,9 @@
 import { sparkline } from '../components/charts.js';
 import { openMovementSheet } from '../components/programedit.js';
 import { PATTERNS, e1rm } from '../lib/movements.js';
-import { esc, n0, n1, pageHead, shortDate, signed, toast, violationList } from '../lib/ui.js';
+import {
+  coachBlock, esc, n0, n1, needsClaude, pageHead, shortDate, signed, toast, violationList,
+} from '../lib/ui.js';
 
 const roleChip = (role) => (role === 'trial'
   ? '<span class="chip trial">trial</span>'
@@ -67,9 +69,6 @@ function offProgramBlock(off) {
   if (!off?.length) return '';
   return '<section class="card offprog">'
     + '<h3>Logged off program</h3>'
-    + '<p class="help">Lifts you did that the program does not contain. The coach rules on each one at '
-    + 'the next review: promoted into the program, given a trial run, or left as a one-off. Doing '
-    + 'something once is not a reason to program it.</p>'
     + '<div class="tablewrap"><table><thead><tr><th>Movement</th><th>Pattern</th>'
     + '<th class="r">Sessions</th><th>Seen</th><th class="r">Best</th></tr></thead><tbody>'
     + off.map((m) => '<tr>'
@@ -111,9 +110,8 @@ export default {
   render(ctx) {
     const program = ctx.data.program;
     if (!program?.sessions?.length) {
-      return pageHead({ eyebrow: 'Strength', title: 'No program yet' })
-        + '<div class="emptystate"><p>The starting program is created on first sign-in. '
-        + 'Reload the page.</p></div>';
+      return pageHead({ eyebrow: 'Strength', title: 'Program' })
+        + '<div class="emptystate"><p>No program yet.</p></div>';
     }
 
     const state = window.__vlStrength || {};
@@ -126,18 +124,18 @@ export default {
     const trials = (program.sessions || []).flatMap((s) => s.movements || []).filter((m) => m.role === 'trial');
 
     return pageHead({
-      eyebrow: `Program v${program.version}`,
+      eyebrow: 'Program',
       title: 'Strength',
-      note: esc(program.philosophy),
       actions: ctx.data.claude?.available
-        ? '<button class="solid" id="reviewProgram">Ask for a program review</button>'
-        : '<span class="thinking">Program review needs Claude — <code>npm run coach -- prompt program-review</code></span>',
+        ? '<button class="solid" id="reviewProgram">Review the program</button>'
+        : needsClaude('Review the program'),
     })
+      + (program.philosophy ? coachBlock({ body: program.philosophy }) : '')
       + '<div class="stats tight">'
       + `<div class="stat"><b>${total}</b><span>movements</span></div>`
       + `<div class="stat"><b>${program.sessions.length}</b><span>sessions a week</span></div>`
       + `<div class="stat"><b>${trials.length}</b><span>on trial</span></div>`
-      + `<div class="stat"><b>${progress.length}</b><span>with logged history</span></div>`
+      + `<div class="stat"><b>${progress.length}</b><span>logged</span></div>`
       + '</div>'
       + coverage(program)
       + '<div class="thinking" id="workStatus" hidden></div>'

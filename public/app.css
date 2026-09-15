@@ -399,7 +399,8 @@ input[type=file]{font-family:'Barlow Condensed',sans-serif; font-size:15px; colo
   font-family:'Barlow Condensed',sans-serif; font-size:23px; font-weight:600;
   line-height:1; letter-spacing:.005em;
 }
-.topbar nav{display:flex; align-items:stretch; gap:0; flex:1; overflow-x:auto}
+.topbar nav{display:flex; align-items:stretch; gap:0; flex:1; overflow-x:auto; scrollbar-width:none}
+.topbar nav::-webkit-scrollbar{display:none}
 .topbar nav a{
   display:flex; align-items:center; padding:0 15px;
   font-family:'Barlow Condensed',sans-serif; font-size:14.5px; text-transform:uppercase;
@@ -908,3 +909,21 @@ button.danger:hover:not(:disabled){background:var(--flag); color:var(--flag-ink)
 @media (max-width:560px){
   .drivers{gap:14px}
 }
+
+/* ---- the coach byline: every model-written block wears it, nothing else does */
+.coach-by{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:11px;
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; text-transform:uppercase;
+  letter-spacing:.12em; color:var(--mut);
+}
+.coach-by i{width:8px; height:8px; border-radius:50%; background:var(--run); flex:none}
+.coach-by b{color:var(--ink); font-weight:600}
+.coach-by .chip{margin-left:2px}
+.coach.assessment .as-head{margin-top:2px}
+.needs{margin-left:10px; font-size:14.5px}
+.scores-more{
+  display:inline-block; margin-top:6px; font-family:'Barlow Condensed',sans-serif; font-size:13px;
+  text-transform:uppercase; letter-spacing:.11em; color:var(--mut);
+}
+.coach-line{display:inline-flex; align-items:baseline; gap:9px}
+.coach-line i{width:7px; height:7px; border-radius:50%; background:var(--run); flex:none; transform:translateY(-1px)}

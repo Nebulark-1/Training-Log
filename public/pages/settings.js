@@ -35,8 +35,7 @@ function goalSheet(ctx, existing) {
   const g = existing || { sport: 'run', metric: 'weeklyDistance', target: 75, primary: false };
   const metrics = goalMetricsFor(g.sport);
   openSheet(
-    `<div class="sheet-head"><div><h3>${existing ? 'Edit goal' : 'New goal'}</h3>`
-    + '<p>What the coach plans toward, and what confidence is measured against</p></div>'
+    `<div class="sheet-head"><div><h3>${existing ? 'Edit goal' : 'New goal'}</h3></div>`
     + '<button type="button" data-close="1">Close</button></div>'
     + '<div class="grid2" style="gap:14px">'
     + '<div class="field"><label for="gSport">Sport</label><select id="gSport">'
@@ -47,8 +46,7 @@ function goalSheet(ctx, existing) {
     + '</select></div>'
     + '</div>'
     + '<div class="grid2" style="gap:14px">'
-    + `<div class="field"><label for="gTarget">Target</label><input type="number" id="gTarget" step="0.1" value="${esc(g.metric === 'raceTime' ? '' : g.target ?? '')}">`
-    + '<div class="scalenote">Miles, minutes or sessions, depending on the kind above.</div></div>'
+    + `<div class="field"><label for="gTarget">Target</label><input type="number" id="gTarget" step="0.1" value="${esc(g.metric === 'raceTime' ? '' : g.target ?? '')}"></div>`
     + `<div class="field"><label for="gDate">By when (optional)</label><input type="date" id="gDate" value="${esc(g.byDate || '')}"></div>`
     + '</div>'
     + '<div class="grid2" style="gap:14px" id="raceFields"' + (g.metric === 'raceTime' ? '' : ' hidden') + '>'
@@ -56,8 +54,8 @@ function goalSheet(ctx, existing) {
     + `<div class="field"><label for="gTime">Target time (h:mm:ss)</label><input type="text" id="gTime" value="${esc(g.metric === 'raceTime' && g.target ? hms(g.target) : '')}" placeholder="3:15:00"></div>`
     + '</div>'
     + `<div class="field"><label for="gLabel">Name it (optional)</label><input type="text" id="gLabel" value="${esc(g.label || '')}" placeholder="75 mile weeks, sustained"></div>`
-    + `<div class="field"><label for="gNote">Notes for the coach</label><textarea id="gNote" placeholder="Anything about this goal the plan should respect.">${esc(g.note || '')}</textarea></div>`
-    + `<label class="check"><input type="checkbox" id="gPrimary"${g.primary ? ' checked' : ''}> Primary goal — the one confidence is scored against</label>`
+    + `<div class="field"><label for="gNote">Note for the coach</label><textarea id="gNote">${esc(g.note || '')}</textarea></div>`
+    + `<label class="check"><input type="checkbox" id="gPrimary"${g.primary ? ' checked' : ''}> Primary goal</label>`
     + '<div class="btnrow"><button class="solid" id="gSave">Save goal</button>'
     + '<button type="button" data-close="1">Cancel</button>'
     + '<span class="thinking" id="gStatus"></span></div>',
@@ -119,13 +117,6 @@ export default {
     const s = ctx.data.settings || {};
     const goals = ctx.data.goals || [];
 
-    const sourceLabel = {
-      'user-key': 'your own API key',
-      'server-key': "this server's ANTHROPIC_API_KEY",
-      'ant-profile': 'an ant auth login profile on this machine',
-      'auth-token': 'ANTHROPIC_AUTH_TOKEN',
-    }[claude.source] || 'unknown';
-
     return pageHead({ eyebrow: 'Setup', title: 'Settings' })
 
       + '<section class="chartblock"><div class="cb-head"><h2>Goals</h2>'
@@ -134,8 +125,7 @@ export default {
         ? '<div class="tablewrap"><table><thead><tr><th>Goal</th><th>Sport</th><th>Target</th>'
           + '<th>By</th><th></th></tr></thead><tbody>'
           + goals.map(goalRow).join('') + '</tbody></table></div>'
-        : '<div class="emptystate"><p>No goals yet. Add one and the plan and confidence number '
-          + 'have something to aim at.</p></div>')
+        : '<div class="emptystate"><p>No goals yet.</p></div>')
       + '</section>'
 
       + '<div class="grid2">'
@@ -148,32 +138,26 @@ export default {
           + `<dt>sessions</dt><dd>${ctx.data.totals?.activities || 0}</dd>`
           + (sync?.lastSync ? `<dt>last sync</dt><dd>${esc(new Date(sync.lastSync).toLocaleString())}</dd>` : '')
           + (sync?.newest ? `<dt>newest</dt><dd>${esc(sync.newest)}</dd>` : '')
-          + (sync?.rateUsage ? `<dt>api usage</dt><dd>${esc(sync.rateUsage)} of 200 / 2000</dd>` : '')
           + '</dl>'
           + '<div class="btnrow"><button class="solid" id="syncNow">Sync now</button>'
           + '<button id="syncFull">Full re-sync (180 days)</button>'
           + '<button id="stravaOff">Disconnect</button></div>'
         : strava.configured === false
-          ? '<p>This server has no Strava API credentials. Add <code>STRAVA_CLIENT_ID</code> and '
-            + '<code>STRAVA_CLIENT_SECRET</code> to <code>.env</code> and restart.</p>'
-          : '<p>Connect Strava to pull distance, pace, elevation, heart rate and per-mile splits. '
-            + 'Read-only; tokens are encrypted on this machine.</p>'
-            + '<div class="btnrow"><a href="/auth/strava/connect"><button class="solid">Connect Strava</button></a></div>')
+          ? '<p class="mut">Not available yet.</p>'
+          : '<div class="btnrow"><a href="/auth/strava/connect"><button class="solid">Connect Strava</button></a>'
+            + '<span class="mut">Read-only</span></div>')
       + '</div>'
 
       + '<div class="conn">'
       + `<h3><span class="dot ${claude.available ? 'on' : 'off'}"></span>Claude</h3>`
       + (claude.available
-        ? `<dl class="kv"><dt>model</dt><dd>${esc(claude.model)}</dd>`
-          + `<dt>billed to</dt><dd>${esc(sourceLabel)}</dd></dl>`
-        : '<p>No Claude credentials. Either paste a key below, set <code>ANTHROPIC_API_KEY</code>, run '
-          + '<code>ant auth login</code> — or skip the key entirely and coach from a Claude Code session '
-          + 'with <code>npm run coach</code>.</p>')
+        ? `<dl class="kv"><dt>model</dt><dd>${esc(claude.model)}</dd></dl>`
+        : '<p class="mut">Not connected.</p>')
       + (claude.allowUserKeys
         ? '<div class="field" style="margin-top:10px"><label for="claudeKey">'
-          + `Your Anthropic API key${claude.hasUserKey ? ' (saved)' : ''}</label>`
-          + `<input type="password" id="claudeKey" placeholder="${claude.hasUserKey ? '•••••••• saved, paste to replace' : 'sk-ant-...'}" autocomplete="off"></div>`
-          + '<div class="btnrow"><button id="saveKey">Save key</button>'
+          + `API key${claude.hasUserKey ? ' · saved' : ''}</label>`
+          + `<input type="password" id="claudeKey" placeholder="${claude.hasUserKey ? 'Paste a new key to replace it' : 'sk-ant-…'}" autocomplete="off"></div>`
+          + '<div class="btnrow"><button id="saveKey">Save</button>'
           + (claude.hasUserKey ? '<button id="clearKey">Remove</button>' : '')
           + '<span class="thinking" id="keyStatus"></span></div>'
         : '')
@@ -181,21 +165,20 @@ export default {
 
       + '<div>'
       + '<h3 class="sub-h">How you train</h3>'
-      + '<p class="help">Constraints the plan has to respect. These go into every coaching prompt.</p>'
-      + '<div class="field"><label for="goalText">In your own words</label>'
+      + '<div class="field"><label for="goalText">The goal, in your words</label>'
       + `<textarea id="goalText" style="min-height:74px">${esc(s.goal || '')}</textarea></div>`
-      + '<div class="field"><label for="goalKeep">Keep alongside the primary goal</label>'
+      + '<div class="field"><label for="goalKeep">Keep every week</label>'
       + `<input type="text" id="goalKeep" value="${esc(s.keep || '')}" placeholder="2 bike sessions, 1-2 swims, 2 lifts"></div>`
       + '<div class="field"><label>Rest days</label><div class="daypick">'
       + DOW.map((d) => `<label class="check inline"><input type="checkbox" data-rest="${d}"`
         + `${(s.restDays || []).includes(d) ? ' checked' : ''}> ${d}</label>`).join('')
-      + '</div><div class="scalenote">Days the plan must leave alone. A guardrail flags a plan that uses one.</div></div>'
-      + '<div class="field"><label for="goalLimits">Hard limits and injury rules</label>'
+      + '</div></div>'
+      + '<div class="field"><label for="goalLimits">Limits</label>'
       + `<textarea id="goalLimits" style="min-height:88px">${esc(s.limits || '')}</textarea></div>`
       + '<div class="btnrow"><button id="saveProfile">Save</button>'
       + '<span class="thinking" id="profileStatus"></span></div>'
       + '<div class="btnrow" style="margin-top:24px">'
-      + '<a href="/api/export"><button>Export everything</button></a>'
+      + '<a href="/api/export"><button>Export</button></a>'
       + '<button id="signOut">Sign out</button></div>'
       + '</div></div>'
       + '<div class="thinking" id="workStatus" hidden></div>';

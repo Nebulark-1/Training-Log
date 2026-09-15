@@ -139,3 +139,40 @@ export function violationList(violations, { title = 'Guardrails' } = {}) {
       + `${esc(v.message)}</li>`).join('')
     + '</ul></div>';
 }
+
+/**
+ * The coach speaking.
+ *
+ * Every word inside this block came from the model, and the byline says so.
+ * Nothing else in the app uses this block or talks in this register, so the
+ * line between "the coach said" and "the app shows" is always visible.
+ */
+export function coachBlock({
+  body = '', title = 'Coach', when = '', verdict = '', list = [], flags = [], extra = '', cls = '',
+} = {}) {
+  const paras = String(body || '').split(/\n\n+/).filter(Boolean)
+    .map((p) => `<p>${esc(p)}</p>`).join('');
+  return `<section class="coach${cls ? ` ${cls}` : ''}">`
+    + `<div class="coach-by"><i></i><b>${esc(title)}</b>`
+    + (verdict ? `<span class="chip ${/back|hold/i.test(verdict) ? 'miss' : 'done'}">${esc(verdict)}</span>` : '')
+    + (when ? `<span>${esc(when)}</span>` : '')
+    + '</div>'
+    + (paras ? `<div class="coachtext">${paras}</div>` : '')
+    + (list.length ? `<ul class="adj">${list.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : '')
+    + (flags.length
+      ? `<div class="flagbox"><b>Watch</b><ul>${flags.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>`
+      : '')
+    + extra
+    + '</section>';
+}
+
+/** A button that needs Claude, shown when Claude is not connected. */
+export function needsClaude(label) {
+  return `<button disabled>${esc(label)}</button>`
+    + '<a class="link needs" href="/settings" data-link>Connect Claude</a>';
+}
+
+/** One coach-written line, inline, wearing the same mark as the block. */
+export const coachLine = (text) => (text
+  ? `<span class="coach-line"><i></i>${esc(text)}</span>`
+  : '');
