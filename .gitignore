@@ -8,3 +8,4 @@ node_modules/
 # python leftovers
 __pycache__/
 *.pyc
+deploy/rclone/

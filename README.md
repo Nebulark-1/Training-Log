@@ -71,9 +71,16 @@ movement catalog can never drift between server and browser.
 3. Restart, then **Setup → Connect Strava**. Approve the "view private
    activities" permission — without it the API hides your training.
 
-Sync is a button, not a background job. It is incremental: each sync starts a
-week before your newest stored activity, so edited and late-uploaded sessions
-get picked up. **Full re-sync** reaches back 180 days.
+On a laptop, sync is a button. It is incremental: each sync starts a week
+before your newest stored activity, so edited and late-uploaded sessions get
+picked up. **Full re-sync** reaches back 180 days.
+
+Behind a public https address, activities arrive on their own: Strava pushes a
+webhook to `/webhooks/strava` for every new, edited or deleted activity, and
+the server fetches just that one. `npm run coach -- strava-webhook subscribe`
+turns it on (see `DEPLOY.md`). A nightly incremental sync at 04:00 catches
+anything a webhook missed, and both check the app-wide Strava allowance before
+they start.
 
 Synced per session: distance, moving and elapsed time, pace (sec/mile, or per
 100 yd for swims), elevation in feet, average and max heart rate, cadence, power
@@ -383,12 +390,15 @@ Three things that are not code problems:
 - **Strava's API agreement** governs what you may store, display and share, and
   it restricts building products that replicate Strava. Read it before charging
   anyone.
-- **Inference costs money.** Per-user keys ("bring your own key") is the setting
-  that makes this sustainable — it is already built, and on by default.
+- **Inference costs money.** The server pays, and the plan meters it: a
+  monthly budget per account, a daily ceiling on coaching calls, and a short
+  cooldown between them. `coach_runs` is the bill.
 
-Also worth knowing: auto-sync via Strava webhooks needs a public HTTPS endpoint,
-which localhost is not. That is why sync is a button here. Behind a real domain,
-add the webhook subscription and the same `syncUser()` runs on a push.
+The server also guards itself: a per-address request ceiling on `/api`, a
+256 KB body limit, the usual security headers, `/healthz` for the host's
+uptime check, and `/api/ops` (owner only) for the Strava allowance, webhook
+counts and when the scheduled jobs last ran. `DEPLOY.md` walks through putting
+it on a real domain.
 
 ## Data
 

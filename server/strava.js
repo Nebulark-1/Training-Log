@@ -5,8 +5,7 @@
 import express from 'express';
 import { config, decrypt, encrypt } from './config.js';
 import {
-  deleteConnection, getConnection, latestActivityDate, saveActivities,
-  saveConnection, saveOauthState, saveSyncState, takeOauthState,
+  deleteConnection, getConnection, getSyncState, latestActivityDate, saveActivities, saveActivity, saveConnection, saveOauthState, saveSyncState, takeOauthState,
 } from './db.js';
 import { requireUser } from './auth.js';
 
@@ -170,16 +169,53 @@ async function accessToken(userId) {
   return payload.access_token;
 }
 
+/**
+ * Strava's limit is per application, not per athlete: 200 requests a quarter
+ * hour and 2,000 a day, shared by every account on this server. Every reply
+ * reports where the app stands, and this remembers it so a sync can be
+ * declined before it is the one that tips the whole app into a 429.
+ */
+export const budget = { short: 0, shortLimit: 200, daily: 0, dailyLimit: 2000, at: null };
+
+function readBudget(resp) {
+  const usage = resp.headers.get('x-ratelimit-usage');
+  const limit = resp.headers.get('x-ratelimit-limit');
+  if (usage) {
+    const [s, d] = usage.split(',').map(Number);
+    if (Number.isFinite(s)) budget.short = s;
+    if (Number.isFinite(d)) budget.daily = d;
+    budget.at = new Date().toISOString();
+  }
+  if (limit) {
+    const [s, d] = limit.split(',').map(Number);
+    if (Number.isFinite(s)) budget.shortLimit = s;
+    if (Number.isFinite(d)) budget.dailyLimit = d;
+  }
+  return usage;
+}
+
+/** How much of the app's Strava allowance is left, as fractions. */
+export function budgetLeft() {
+  // The quarter-hour bucket resets on its own; treat a stale reading as clear.
+  const stale = !budget.at || Date.now() - Date.parse(budget.at) > 15 * 60 * 1000;
+  return {
+    short: stale ? 1 : Math.max(0, 1 - budget.short / budget.shortLimit),
+    daily: Math.max(0, 1 - budget.daily / budget.dailyLimit),
+    ...budget,
+  };
+}
+
 async function apiGet(token, pathAndQuery) {
   const resp = await fetch(`${API}${pathAndQuery}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
+  const usage = readBudget(resp);
   if (resp.status === 401) throw Object.assign(new Error('Strava rejected the token.'), { code: 'reauth' });
   if (resp.status === 429) {
     throw Object.assign(new Error('Strava rate limit reached. Wait 15 minutes and sync again.'), { code: 'rate_limited' });
   }
   if (!resp.ok) throw new Error(`Strava ${resp.status}: ${(await resp.text()).slice(0, 240)}`);
-  return { data: await resp.json(), usage: resp.headers.get('x-ratelimit-usage') };
+  return { data: await resp.json(), usage };
 }
 
 // --- sync ------------------------------------------------------------------
@@ -189,6 +225,20 @@ async function apiGet(token, pathAndQuery) {
  * picked up, and falls back to `days` on a first sync.
  */
 export async function syncUser(userId, { days = 180, detailDays = 28, detailMax = 25, full = false } = {}) {
+  const left = budgetLeft();
+  // A full sync is the expensive one — up to 30 listing pages plus a detail
+  // call per recent session. Refuse it outright when the app is close to its
+  // day, and thin the detail fetches when the quarter hour is getting tight,
+  // rather than let one athlete's re-sync take the app down for everyone.
+  if (full && left.daily < 0.25) {
+    throw Object.assign(
+      new Error("Strava's daily allowance for this app is nearly used. A full re-sync can wait until tomorrow; a normal sync still works."),
+      { code: 'rate_budget', status: 429 },
+    );
+  }
+  if (left.short < 0.4) detailMax = Math.min(detailMax, 5);
+  if (left.daily < 0.15) detailMax = 0;
+
   const token = await accessToken(userId);
   const started = Date.now();
 
@@ -260,6 +310,58 @@ export async function syncUser(userId, { days = 180, detailDays = 28, detailMax 
   };
   saveSyncState(userId, state);
   return state;
+}
+
+/**
+ * Bring in one activity by id — what a webhook event asks for. One detail
+ * call, which carries every summary field too, so it goes straight through
+ * the same normalizer as a sync.
+ */
+export async function syncOne(userId, activityId) {
+  const token = await accessToken(userId);
+  const { data } = await apiGet(token, `/activities/${activityId}?include_all_efforts=false`);
+  const act = normalize(data, data);
+  saveActivity(userId, act);
+  const state = getSyncState(userId) || {};
+  saveSyncState(userId, {
+    ...state,
+    newest: [state.newest || '', act.date].sort().pop(),
+    lastWebhook: new Date().toISOString(),
+    webhookEvents: (state.webhookEvents || 0) + 1,
+  });
+  return act;
+}
+
+// --- webhook subscription (one per application) -----------------------------
+//
+// Strava pushes activity events to a callback the app registers once. From
+// then on a new run arrives within seconds and costs one API call, instead
+// of every account polling. The verify token is what proves the callback is
+// ours during registration.
+
+export const verifyToken = () => config.strava.verifyToken;
+
+export async function subscriptionStatus() {
+  const q = new URLSearchParams({ client_id: config.strava.clientId, client_secret: config.strava.clientSecret });
+  const resp = await fetch(`${API}/push_subscriptions?${q}`);
+  if (!resp.ok) throw new Error(`Strava ${resp.status}: ${(await resp.text()).slice(0, 240)}`);
+  return resp.json();
+}
+
+export async function subscribe(callbackUrl) {
+  return postForm(`${API}/push_subscriptions`, {
+    client_id: config.strava.clientId,
+    client_secret: config.strava.clientSecret,
+    callback_url: callbackUrl,
+    verify_token: verifyToken(),
+  });
+}
+
+export async function unsubscribe(id) {
+  const q = new URLSearchParams({ client_id: config.strava.clientId, client_secret: config.strava.clientSecret });
+  const resp = await fetch(`${API}/push_subscriptions/${id}?${q}`, { method: 'DELETE' });
+  if (!resp.ok && resp.status !== 204) throw new Error(`Strava ${resp.status}: ${(await resp.text()).slice(0, 240)}`);
+  return true;
 }
 
 // --- routes ----------------------------------------------------------------

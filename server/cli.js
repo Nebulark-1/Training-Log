@@ -127,6 +127,28 @@ switch (command) {
     break;
   }
 
+  case 'strava-webhook': {
+    // npm run coach -- strava-webhook status | subscribe | delete
+    const { subscriptionStatus, subscribe, unsubscribe } = await import('./strava.js');
+    const { config } = await import('./config.js');
+    const what = positional[0] || 'status';
+    if (!config.strava.enabled) die('Strava is not configured (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET).');
+    if (what === 'status') {
+      const subs = await subscriptionStatus();
+      if (!subs.length) process.stdout.write('\n  No webhook subscription. Run:  npm run coach -- strava-webhook subscribe\n\n');
+      for (const sub of subs) process.stdout.write(`\n  #${sub.id}  ${sub.callback_url}  since ${String(sub.created_at).slice(0, 10)}\n\n`);
+    } else if (what === 'subscribe') {
+      if (!config.baseUrl.startsWith('https://')) die('BASE_URL must be a public https address for Strava to reach the callback.');
+      const sub = await subscribe(`${config.baseUrl}/webhooks/strava`);
+      process.stdout.write(`\n  Subscribed: #${sub.id} -> ${config.baseUrl}/webhooks/strava\n\n`);
+    } else if (what === 'delete') {
+      const subs = await subscriptionStatus();
+      for (const sub of subs) { await unsubscribe(sub.id); process.stdout.write(`\n  Deleted #${sub.id}\n`); }
+      process.stdout.write('\n');
+    } else die('Usage: strava-webhook status | subscribe | delete');
+    break;
+  }
+
   case 'tier': {
     // npm run coach -- tier someone@gmail.com plus
     const [email, tier] = positional;
@@ -250,6 +272,7 @@ switch (command) {
 
     npm run coach -- users
     npm run coach -- tier <email> <basic|plus|expert>
+    npm run coach -- strava-webhook status | subscribe | delete
     npm run coach -- context [--weeks=12] [--sessions=24]
     npm run coach -- prompt plan-week [2026-W38]
     npm run coach -- prompt review "<digest text>" | @digest.txt

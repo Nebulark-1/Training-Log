@@ -1,0 +1,28 @@
+# systemd unit, for running without Docker on a VM.
+#   sudo cp deploy/chaos-coaching.service /etc/systemd/system/
+#   sudo systemctl enable --now chaos-coaching
+# Caddy (or nginx) still terminates TLS in front; see deploy/Caddyfile with
+# `reverse_proxy 127.0.0.1:4317` in place of `app:4317`.
+[Unit]
+Description=Chaos Coaching
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=coach
+WorkingDirectory=/opt/chaos-coaching
+EnvironmentFile=/opt/chaos-coaching/.env
+ExecStart=/usr/bin/node --experimental-sqlite --no-warnings server/index.js
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+# Least privilege: the process can write its data directory and nothing else.
+ProtectSystem=strict
+ReadWritePaths=/opt/chaos-coaching/data
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

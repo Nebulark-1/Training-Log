@@ -1,0 +1,59 @@
+# Chaos Coaching — the app behind Caddy, data on a named volume.
+#
+#   cp .env.example .env    # fill it in
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# Caddy answers on 80/443, fetches and renews the certificate for the domain
+# in BASE_URL, and proxies to the app on the internal network. The app never
+# listens on a public port.
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file: ../.env
+    environment:
+      HOST: 0.0.0.0
+      DB_PATH: /data/ledger.db
+    volumes:
+      - data:/data
+    restart: unless-stopped
+    stop_grace_period: 10s
+    networks: [web]
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE: ${SITE:-coach.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    restart: unless-stopped
+    networks: [web]
+
+  # Nightly: copy the app's own snapshots off the machine. Fill in the rclone
+  # remote in deploy/backup.sh and mount its config here.
+  backup:
+    image: rclone/rclone:latest
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+    volumes:
+      - data:/data:ro
+      - ./backup.sh:/backup.sh:ro
+      - ${RCLONE_CONFIG_DIR:-./rclone}:/config/rclone
+    restart: unless-stopped
+    networks: [web]
+
+volumes:
+  data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  web:

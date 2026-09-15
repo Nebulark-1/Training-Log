@@ -113,9 +113,10 @@ export default {
 
   async mount(ctx, root) {
     if (!window.__vlInjuries) {
+      const gen = ctx.gen;
       try {
         window.__vlInjuries = await ctx.api('/api/injuries');
-        ctx.rerender();
+        if (ctx.gen === gen) ctx.rerender();
       } catch (err) {
         ctx.toast(err.message, true);
       }

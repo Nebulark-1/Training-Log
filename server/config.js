@@ -95,6 +95,12 @@ export const config = {
     clientId: process.env.STRAVA_CLIENT_ID || '',
     clientSecret: process.env.STRAVA_CLIENT_SECRET || '',
     get enabled() { return Boolean(this.clientId && this.clientSecret); },
+    // Proves a webhook callback is ours. Derived from the app secret unless
+    // set, so it is stable across restarts and never sits in the repo.
+    get verifyToken() {
+      return process.env.STRAVA_VERIFY_TOKEN
+        || crypto.createHash('sha256').update(`strava-verify:${Buffer.from(ENC_KEY).toString('hex')}`).digest('hex').slice(0, 32);
+    },
   },
 
   anthropic: {

@@ -5,7 +5,10 @@ import path from 'node:path';
 import { config } from './config.js';
 import { BACKUP_DIR, dailySnapshot, listBackups, snapshot } from './backup.js';
 import { attachUser, authRouter, requireUser } from './auth.js';
-import { stravaRouter, syncUser } from './strava.js';
+import { budgetLeft, stravaRouter, syncUser } from './strava.js';
+import { webhookRouter, webhookStats } from './webhooks.js';
+import { scheduledJobs, startScheduler } from './scheduler.js';
+import { todayIn } from '../public/lib/dates.js';
 import {
   applyWeekEdit, assessGoal, buildMacrocycle, claudeStatus, coachingFor, confidencePrompt,
   DEFAULT_SETTINGS, planWeek, profileFor, reviewDigest, reviewProgram,
@@ -33,7 +36,55 @@ import {
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '2mb' }));
+
+// Behind Caddy or nginx the connection we see is the proxy's. Trusting one
+// hop restores the client's address and the https scheme, which the cookie
+// flags and the rate limiter both depend on.
+if (config.baseUrl.startsWith('https://')) app.set('trust proxy', 1);
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (config.baseUrl.startsWith('https://')) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+/** For the host's health check. Says the database answers; nothing else. */
+app.get('/healthz', (_req, res) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ ok: true, schema: dbVersion(), uptime: Math.round(process.uptime()) });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: err.message });
+  }
+});
+
+// Webhooks arrive without a session, before any of the app's own middleware.
+app.use('/webhooks', express.json({ limit: '64kb' }), webhookRouter);
+
+app.use(express.json({ limit: '256kb' }));
+
+/**
+ * A ceiling on requests per address: generous for a person, tight for a
+ * script. Coaching has its own, finer guards in the plan; this is the one
+ * that stops a loop from making the server unavailable to everyone else.
+ */
+const hits = new Map();
+app.use('/api', (req, res, next) => {
+  const key = req.ip || 'unknown';
+  const now = Date.now();
+  const entry = hits.get(key) || { count: 0, since: now };
+  if (now - entry.since > 60_000) { entry.count = 0; entry.since = now; }
+  entry.count += 1;
+  hits.set(key, entry);
+  if (entry.count > 240) return res.status(429).json({ error: 'too_many_requests', message: 'Slow down a little.' });
+  next();
+});
+setInterval(() => { const cut = Date.now() - 120_000; for (const [k, v] of hits) if (v.since < cut) hits.delete(k); }, 60_000).unref();
 
 // Minimal cookie parsing — the only cookie is the session id.
 app.use((req, _res, next) => {
@@ -78,7 +129,11 @@ api.use((req, _res, next) => {
 api.get('/data', (req, res) => {
   const userId = req.user.id;
   const weeksBack = Math.min(52, Math.max(4, Number(req.query.weeks) || 16));
-  const week = thisWeek();
+  // The browser says which timezone the athlete is in; "today" is theirs,
+  // not the server's. Without this, a tester two zones east gets yesterday's
+  // page until mid-morning.
+  const today = todayIn(String(req.query.tz || ''));
+  const week = isoWeek(parseYmd(today));
   const fromWeek = weekAdd(week, -weeksBack);
   const fromDate = ymd(mondayOf(fromWeek));
 
@@ -92,7 +147,7 @@ api.get('/data', (req, res) => {
   for (const d of getDigests(userId, 12)) digests[d.week] = d;
 
   res.json({
-    today: ymd(new Date()),
+    today,
     week,
     user: { id: req.user.id, name: req.user.name, email: req.user.email, picture: req.user.picture },
     settings,
@@ -461,6 +516,13 @@ api.get('/export', (req, res) => {
   res.send(JSON.stringify(data, null, 1));
 });
 
+/** What the server is doing on its own: Strava allowance, webhooks, jobs. */
+api.get('/ops', (req, res) => {
+  const plan = coachingFor(req.user.id);
+  if (!plan.owner) return res.status(403).json({ error: 'owner_only' });
+  res.json({ strava: budgetLeft(), webhooks: webhookStats(), jobs: scheduledJobs() });
+});
+
 /**
  * Snapshots. The export route hands back JSON a human can read; this one takes
  * a real copy of the database, which is what you actually restore from.
@@ -604,3 +666,24 @@ server.on('error', (err) => {
   else console.error('\n  Server failed to start:', err.message, '\n');
   process.exit(1);
 });
+
+startScheduler();
+
+/**
+ * A host that is redeploying sends SIGTERM and waits a moment. Stop taking
+ * connections, let the ones in flight finish, checkpoint the write-ahead log
+ * so the next start reads a tidy file, then go.
+ */
+let stopping = false;
+function shutdown(signal) {
+  if (stopping) return;
+  stopping = true;
+  console.log(`\n  ${signal}: shutting down`);
+  server.close(() => {
+    try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch { /* best effort */ }
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(0), 8000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

@@ -38,13 +38,30 @@ const state = {
 };
 
 // --- api -------------------------------------------------------------------
+const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } })();
+
 async function api(path, { method = 'GET', body, signal } = {}) {
-  const resp = await fetch(path, {
-    method,
-    signal,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // Nothing waits forever. A hung request would otherwise leave a page on
+  // "Loading" and a coach button greyed out with no way back.
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), method === 'GET' ? 20_000 : 15 * 60_000);
+  signal?.addEventListener('abort', () => timeout.abort(), { once: true });
+  let resp;
+  try {
+    resp = await fetch(path, {
+      method,
+      signal: timeout.signal,
+      headers: { 'X-Timezone': TZ, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError' && !signal?.aborted) {
+      throw Object.assign(new Error('That took too long. Try again.'), { name: 'TimeoutError' });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await resp.text();
   let json = null;
   try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
@@ -61,7 +78,7 @@ async function api(path, { method = 'GET', body, signal } = {}) {
 /** Reload the core payload and re-render the current page. */
 async function refresh({ fitness = false } = {}) {
   const [data, fit] = await Promise.all([
-    api('/api/data?weeks=20'),
+    api(`/api/data?weeks=20&tz=${encodeURIComponent(TZ)}`),
     fitness || state.fitness ? api('/api/fitness').catch(() => state.fitness) : Promise.resolve(state.fitness),
   ]);
   state.data = data;
@@ -87,6 +104,9 @@ function currentPath() {
 
 function go(path, { replace = false } = {}) {
   if (path === currentPath()) return;
+  // Leaving a page closes whatever it had open. A sheet left up over a new
+  // page kept the body locked against scrolling, which reads as a freeze.
+  closeSheet();
   if (replace) window.history.replaceState({}, '', path);
   else window.history.pushState({}, '', path);
   render();
@@ -103,6 +123,12 @@ const ctx = {
   toast,
   /** Re-draw the current page without refetching. */
   rerender: () => render(),
+  /**
+   * A token for the current page draw. Async work started by a page should
+   * check it before touching the screen: if the athlete has moved on, the
+   * result is stale and drawing it would fight the page they are now on.
+   */
+  get gen() { return state.gen || 0; },
   /**
    * Mapped pain from the loaded window, so the body map can show where things
    * have hurt before while you are logging a new one.
@@ -218,6 +244,7 @@ function renderPage() {
 
   document.title = `${page.label} — ${BRAND}`;
   state.page = page;
+  state.gen = (state.gen || 0) + 1;
   view.innerHTML = page.render(ctx);
   page.mount?.(ctx, view);
 }
@@ -262,7 +289,7 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-window.addEventListener('popstate', render);
+window.addEventListener('popstate', () => { closeSheet(); render(); });
 
 // Left/right move the day on the Today page. Ignored while typing, while a
 // sheet is open, or with modifiers held, so they never fight a field or the
@@ -490,6 +517,10 @@ function announceConnections() {
     await refresh();
     announceConnections();
   } catch (err) {
-    toast(err.message, true);
+    // The first load failed; a blank page with a toast is not a page. Say
+    // what happened and leave a way back that is not the address bar.
+    $('view').innerHTML = `<div class="emptystate"><p>Couldn't load your training. ${err.message}</p>`
+      + '<p><button class="solid" id="bootRetry">Try again</button></p></div>';
+    $('view').querySelector('#bootRetry').addEventListener('click', () => window.location.reload());
   }
 })();

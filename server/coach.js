@@ -22,7 +22,7 @@ import {
   getActivities, getDigests, getFeedback, getPlan, getSettings, getWeek, getWeeks,
   listGoals, logCoachRun, savePlan, saveWeek, saveDigest,
   listAssessments, saveAssessment,
-  findUserById, monthlySpend,
+  findUserById, monthlySpend, runsToday,
 } from './db.js';
 import {
   applyProgramChange, ensureProgram, liftHistory, movementIndex,
@@ -269,8 +269,9 @@ export function coachingFor(userId) {
   // The owner is Expert whatever the row says; the row is corrected at sign-in.
   const tierId = owner ? 'expert' : (user?.tier || DEFAULT_TIER);
   const tier = tierOf(tierId);
+  const { today, lastRunAt } = runsToday(userId);
   return {
-    ...allowance(tierId, monthlySpend(userId), { unlimited: owner }),
+    ...allowance(tierId, monthlySpend(userId), { unlimited: owner, today, lastRunAt }),
     owner,
     price: tier.price,
     blurb: tier.blurb,
@@ -280,7 +281,7 @@ export function coachingFor(userId) {
 
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
-async function ask(userId, kind, schema, userText) {
+async function ask(userId, kind, schema, userText, { chained = false } = {}) {
   const started = Date.now();
   if (!claudeStatus().available) {
     throw Object.assign(
@@ -289,11 +290,20 @@ async function ask(userId, kind, schema, userText) {
     );
   }
   const plan = coachingFor(userId);
+  const refuse = (message, code) => {
+    throw Object.assign(new Error(message), { code, status: code === 'allowance' ? 402 : 429 });
+  };
   if (plan.exhausted) {
-    throw Object.assign(
-      new Error(`Your plan's coaching for this month is used up. It resets on ${plan.resets}.`),
-      { code: 'allowance', status: 402 },
-    );
+    refuse(`Your plan's coaching for this month is used up. It resets on ${plan.resets}.`, 'allowance');
+  }
+  // A chained call is the second half of one action, not a second action.
+  if (!chained) {
+    if (plan.cappedToday) {
+      refuse(`That is ${plan.dailyCap} coaching calls today, which is the plan's daily limit. Tomorrow.`, 'daily_cap');
+    }
+    if (plan.coolingDown) {
+      refuse(`The coach just answered. Give it ${plan.coolsInSec} seconds.`, 'cooldown');
+    }
   }
   const client = clientFor();
   const slot = modelFor(plan.tier, kind);
@@ -860,9 +870,9 @@ export function applyWeekEdit(userId, weekKey, days, { note = '' } = {}) {
   return { ok: true, week: doc, violations: introduced, standing: before };
 }
 
-export async function planWeek(userId, weekKey, { force = false } = {}) {
+export async function planWeek(userId, weekKey, { force = false, chained = false } = {}) {
   const { schema, task } = weekPrompt(userId, weekKey);
-  const out = await ask(userId, 'plan-week', schema, task);
+  const out = await ask(userId, 'plan-week', schema, task, { chained });
   return applyWeek(userId, weekKey, out, 'claude', { force });
 }
 
@@ -907,7 +917,7 @@ export async function reviewDigest(userId, text) {
   const { schema, task } = reviewPrompt(userId, text);
   const out = await ask(userId, 'review-digest', schema, task);
   const review = applyReview(userId, text, out);
-  const planned = await planWeek(userId, week);
+  const planned = await planWeek(userId, week, { chained: true });
   return { review, week: planned.week, violations: planned.violations, ok: planned.ok };
 }
 

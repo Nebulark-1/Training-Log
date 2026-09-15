@@ -63,3 +63,20 @@ export function weekDates(weekKey) {
 
 export const todayYmd = () => ymd(new Date());
 export const thisWeek = () => isoWeek(new Date());
+
+/**
+ * Today's date in a named timezone, as YYYY-MM-DD. An unknown or empty zone
+ * falls back to the machine's own. The browser reports its zone with the
+ * request, so an athlete's day starts when their day starts.
+ */
+export function todayIn(tz, now = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz || undefined, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(now);
+    const get = (t) => parts.find((p) => p.type === t)?.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  } catch {
+    return ymd(now);
+  }
+}

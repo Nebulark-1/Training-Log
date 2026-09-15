@@ -89,3 +89,27 @@ test('the month resets on the first, in UTC', () => {
   assert.equal(nextReset(new Date('2026-12-31T23:59:59Z')), '2027-01-01');
   assert.equal(monthStart(new Date('2026-09-15T12:00:00Z')), '2026-09-01T00:00:00.000Z');
 });
+
+test('a day has a ceiling that is not the monthly budget', () => {
+  const a = allowance('basic', 0.1, { today: 3 });
+  assert.equal(a.cappedToday, true, 'three calls is the entry tier\'s day');
+  assert.equal(a.exhausted, false, 'while the month is barely touched');
+  assert.equal(allowance('expert', 0.1, { today: 3 }).cappedToday, false, 'a bigger plan gets a bigger day');
+});
+
+test('a second call right after the first is asked to wait', () => {
+  const now = Date.parse('2026-09-15T12:00:00Z');
+  const a = allowance('plus', 0, { lastRunAt: '2026-09-15T11:59:30Z', now });
+  assert.equal(a.coolingDown, true);
+  assert.ok(a.coolsInSec > 0 && a.coolsInSec <= 90);
+  const later = allowance('plus', 0, { lastRunAt: '2026-09-15T11:50:00Z', now });
+  assert.equal(later.coolingDown, false);
+});
+
+test('the owner has no daily ceiling but still cools down', () => {
+  const now = Date.parse('2026-09-15T12:00:00Z');
+  const a = allowance('expert', 0, { unlimited: true, today: 40, lastRunAt: '2026-09-15T11:59:50Z', now });
+  assert.equal(a.cappedToday, false);
+  assert.equal(a.dailyCap, null);
+  assert.equal(a.coolingDown, true, 'the cooldown is a double-click guard, for everyone');
+});

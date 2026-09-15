@@ -292,6 +292,21 @@ export function logCoachRun(userId, kind, { model, usage, ms, ok, error }) {
       ms ?? null, ok ? 1 : 0, error ?? null, costOf(model, usage), nowIso());
 }
 
+/** Coaching calls started today (UTC), and when the last one started. */
+export function runsToday(userId, now = new Date()) {
+  const day = now.toISOString().slice(0, 10);
+  const row = db.prepare("SELECT COUNT(*) AS n, MAX(created_at) AS last FROM coach_runs WHERE user_id = ? AND created_at >= ?")
+    .get(userId, `${day}T00:00:00.000Z`);
+  return { today: row?.n || 0, lastRunAt: row?.last || null };
+}
+
+/** The account behind a Strava athlete id, for webhook events. */
+export function userForStravaAthlete(athleteId) {
+  const row = db.prepare("SELECT user_id FROM connections WHERE provider = 'strava' AND external_id = ?")
+    .get(String(athleteId));
+  return row?.user_id || null;
+}
+
 /** What this account's coaching has cost since the first of the month. */
 export function monthlySpend(userId, now = new Date()) {
   const row = db.prepare('SELECT COALESCE(SUM(cost), 0) AS spent FROM coach_runs WHERE user_id = ? AND created_at >= ?')

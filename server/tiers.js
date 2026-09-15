@@ -53,6 +53,19 @@ export const TIERS = {
 
 export const DEFAULT_TIER = 'basic';
 
+/*
+ * Two guards that are not the budget.
+ *
+ * The budget stops a month from costing more than the plan brings in. It does
+ * not stop an afternoon: fifteen re-plans in a row spend a whole month's
+ * allowance in an hour and leave the athlete with nothing until the first.
+ * So there is a cap on coaching calls per day, and a cooldown between them
+ * that is mostly there to absorb a double-click. A digest review plans the
+ * week as part of the same action, and that chained call is exempt.
+ */
+export const DAILY_CAP = { basic: 3, plus: 6, expert: 12 };
+export const COOLDOWN_SEC = 90;
+
 /** The kinds of coaching call, and which of the two model slots each uses. */
 export const KEY_KINDS = new Set(['goal-confidence', 'program-review', 'build-plan']);
 export const isKeyKind = (kind) => KEY_KINDS.has(kind);
@@ -90,10 +103,12 @@ export const monthStart = (now = new Date()) => (
  * Where a user stands against their month. `unlimited` is the owner: the
  * meter still runs, so the number is known, but nothing is refused.
  */
-export function allowance(tierId, spent, { unlimited = false } = {}) {
+export function allowance(tierId, spent, { unlimited = false, today = 0, lastRunAt = null, now = Date.now() } = {}) {
   const tier = tierOf(tierId);
   const budget = unlimited ? Infinity : tier.budget;
   const pct = unlimited ? 0 : Math.min(100, Math.round((spent / budget) * 100));
+  const cap = DAILY_CAP[tier.id] ?? DAILY_CAP[DEFAULT_TIER];
+  const sinceLast = lastRunAt ? (now - Date.parse(lastRunAt)) / 1000 : Infinity;
   return {
     tier: tier.id,
     label: tier.label,
@@ -101,6 +116,11 @@ export function allowance(tierId, spent, { unlimited = false } = {}) {
     budget: unlimited ? null : budget,
     pct,
     exhausted: !unlimited && spent >= budget,
-    resets: nextReset(),
+    resets: nextReset(new Date(now)),
+    today,
+    dailyCap: unlimited ? null : cap,
+    cappedToday: !unlimited && today >= cap,
+    coolingDown: sinceLast < COOLDOWN_SEC,
+    coolsInSec: sinceLast < COOLDOWN_SEC ? Math.ceil(COOLDOWN_SEC - sinceLast) : 0,
   };
 }

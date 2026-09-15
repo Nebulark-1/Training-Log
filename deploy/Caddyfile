@@ -1,0 +1,11 @@
+# One line does TLS. Caddy gets a Let's Encrypt certificate for the site,
+# renews it, redirects http to https, and passes everything to the app.
+# SITE comes from the environment (docker-compose) — set it to your domain.
+{$SITE} {
+	encode zstd gzip
+	reverse_proxy app:4317
+	header {
+		# The app sets its own security headers; this one needs the edge.
+		-Server
+	}
+}
